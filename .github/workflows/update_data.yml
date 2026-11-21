@@ -1,0 +1,42 @@
+name: Update MLB Data
+
+on:
+  schedule:
+    # 每天 UTC 07:00 = 台灣時間下午 15:00（美職當日賽事剛結束）
+    - cron: '0 7 * * *'
+  workflow_dispatch: # 允許在 GitHub 網頁上手動點擊立刻執行
+
+permissions:
+  contents: write # 授權將更新後的 mlb_data.json 寫回 Repo
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install curl_cffi requests pandas
+
+      - name: Run fetch_data.py
+        run: python fetch_data.py
+
+      - name: Commit and push if changed
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add mlb_data.json
+          if git diff --staged --quiet; then
+            echo "mlb_data.json 無變動，略過 commit。"
+          else
+            git commit -m "chore: auto-update mlb_data.json ($(date +'%Y-%m-%d'))"
+            git push
+          fi
