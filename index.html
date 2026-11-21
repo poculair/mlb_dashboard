@@ -1,0 +1,2026 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MLB 球員全維度數據儀表板</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .savant-bar-bg {
+      background: linear-gradient(90deg, #3b82f6 0%, #94a3b8 50%, #ef4444 100%);
+      opacity: 0.25;
+    }
+    .savant-bar-bg-rev {
+      background: linear-gradient(270deg, #3b82f6 0%, #94a3b8 50%, #ef4444 100%);
+      opacity: 0.25;
+    }
+    .hatched-bar-red {
+      background-image: repeating-linear-gradient(
+        -45deg,
+        rgba(239, 68, 68, 0.45),
+        rgba(239, 68, 68, 0.45) 4px,
+        rgba(254, 202, 202, 0.35) 4px,
+        rgba(254, 202, 202, 0.35) 8px
+      );
+    }
+    .hatched-bar-blue {
+      background-image: repeating-linear-gradient(
+        -45deg,
+        rgba(59, 130, 246, 0.45),
+        rgba(59, 130, 246, 0.45) 4px,
+        rgba(191, 219, 254, 0.35) 4px,
+        rgba(191, 219, 254, 0.35) 8px
+      );
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased">
+
+  <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+        <div class="flex items-center gap-2">
+          <span class="bg-red-600 text-xs font-bold px-2 py-1 rounded tracking-wider">MLB HUB</span>
+          <h1 class="text-lg font-bold tracking-tight">球員整合數據儀表板</h1>
+        </div>
+
+        <div class="inline-flex rounded-lg bg-slate-800 p-1 border border-slate-700">
+          <button id="navBtnSingle" onclick="switchAppView('single')" class="px-3 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition">
+            單人總覽
+          </button>
+          <button id="navBtnCompare" onclick="switchAppView('compare')" class="px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition">
+            ⚔️ 球員對決 (Compare)
+          </button>
+        </div>
+      </div>
+
+      <div id="singleHeaderControls" class="flex items-center gap-2.5 w-full md:w-auto">
+        <select
+          id="yearSelect"
+          class="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-blue-500 cursor-pointer"
+        >
+          <option value="2026">2026 球季</option>
+          <option value="2025">2025 球季</option>
+          <option value="2024">2024 球季</option>
+        </select>
+
+        <div class="relative flex-1 md:w-80">
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="輸入球員英文姓名 (如 Ohtani, Acuna, Mize)..."
+            class="w-full bg-slate-800 text-white placeholder-slate-400 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+            autocomplete="off"
+          />
+          <div id="searchResults" class="hidden absolute left-0 right-0 mt-1 bg-white text-slate-800 rounded-lg shadow-xl border border-slate-200 max-h-72 overflow-y-auto z-50"></div>
+        </div>
+      </div>
+
+      <div id="compareHeaderControls" class="hidden items-center gap-2">
+        <span class="text-xs text-slate-400 font-semibold">對稱比對身分：</span>
+        <div class="inline-flex rounded-lg bg-slate-800 p-1 border border-slate-700">
+          <button id="cmpRoleBat" onclick="setCompareRole('batter')" class="px-3 py-1 text-xs font-bold rounded-md bg-emerald-600 text-white transition">
+            打者 vs 打者 (Batters)
+          </button>
+          <button id="cmpRolePit" onclick="setCompareRole('pitcher')" class="px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition">
+            投手 vs 投手 (Pitchers)
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-5">
+    <div id="statusBanner" class="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2.5 rounded-lg text-sm hidden"></div>
+
+    <!-- ==================== 視圖 1：單人完整儀表板 ==================== -->
+    <div id="singleViewSection" class="space-y-5">
+      <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <img id="playerAvatar" src="" alt="Player" class="w-20 h-20 rounded-full object-cover bg-slate-100 border-2 border-slate-200 shrink-0" />
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h2 id="playerName" class="text-2xl font-extrabold text-slate-900">-</h2>
+                <span id="playerPos" class="bg-slate-800 text-white text-xs font-bold px-2.5 py-0.5 rounded">-</span>
+                <span id="playerCurrentTeam" class="hidden bg-blue-50 text-blue-800 border border-blue-200 text-xs font-extrabold px-2 py-0.5 rounded"></span>
+                <span id="playerMeta" class="text-sm text-slate-500">-</span>
+
+                <div id="twoWaySwitch" class="hidden inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-300 ml-1">
+                  <button id="btnModeBat" onclick="switchRoleMode('batter')" class="px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition">
+                    打者 (Batting)
+                  </button>
+                  <button id="btnModePit" onclick="switchRoleMode('pitcher')" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition">
+                    投手 (Pitching)
+                  </button>
+                </div>
+              </div>
+
+              <!-- 獨立成第二列：薪資（含當年度薪資，可點擊展開明細）、仲裁狀態、Options -->
+              <div id="playerContractBadges" class="flex flex-wrap items-center gap-1.5 mt-2 empty:hidden"></div>
+
+              <div class="flex flex-wrap items-center gap-2 mt-2.5" id="externalLinks"></div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 self-stretch md:self-center shrink-0">
+            <div class="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 text-center min-w-[135px]">
+              <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">FanGraphs fWAR</div>
+              <div id="fwarVal" class="text-2xl font-black text-emerald-950 my-0.5">-</div>
+              <div id="fwarTierBadge" class="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-200/70 text-emerald-900">-</div>
+            </div>
+
+            <div class="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2 text-center min-w-[135px]">
+              <div id="secondaryHeroTitle" class="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Standard OPS+</div>
+              <div id="secondaryHeroVal" class="text-2xl font-black text-indigo-950 my-0.5">-</div>
+              <div id="secondaryTierBadge" class="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-200/70 text-indigo-900">-</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 text-white px-5 py-3.5 border-t border-slate-800">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5 flex-wrap">
+              <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+              <span id="topStatYearLabel">2026</span> 球季 MLB 官方數據 · <span id="topSplitTitle" class="text-amber-300">全季總計</span>
+              <div id="seasonTeamControls" class="hidden inline-flex items-center gap-1 ml-1"></div>
+            </span>
+
+            <div class="flex flex-wrap gap-1.5" id="splitTabs">
+              <button data-split="season" data-title="全季總計" class="split-btn bg-blue-600 text-white text-xs font-semibold px-2.5 py-1 rounded transition">全季總計</button>
+              <button data-split="vl" data-title="對左投 (vs LHP)" class="split-btn bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-2.5 py-1 rounded transition">對左投</button>
+              <button data-split="vr" data-title="對右投 (vs RHP)" class="split-btn bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-2.5 py-1 rounded transition">對右投</button>
+              <button data-split="h" data-title="主場 (Home)" class="split-btn bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-2.5 py-1 rounded transition">主場</button>
+              <button data-split="a" data-title="客場 (Away)" class="split-btn bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-2.5 py-1 rounded transition">客場</button>
+              <button data-split="risp" data-title="得點圈有人 (RISP)" class="split-btn bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-2.5 py-1 rounded transition">得點圈</button>
+              <button data-split="byMonth" data-title="逐月表現 (Month)" class="split-btn bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-2.5 py-1 rounded transition">逐月 (Month)</button>
+            </div>
+          </div>
+
+          <div id="topSeasonStatGrid" class="grid grid-cols-5 sm:grid-cols-10 gap-2 text-center"></div>
+
+          <div id="topMonthlyTableWrapper" class="hidden overflow-x-auto mt-1">
+            <table class="w-full text-xs text-right border-collapse">
+              <thead class="bg-slate-800/90 text-slate-400 border-y border-slate-700 uppercase">
+                <tr id="monthlyTableHead"></tr>
+              </thead>
+              <tbody id="monthlyTableBody" class="divide-y divide-slate-800 font-medium text-slate-200"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <section class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3 mb-4">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-6 bg-red-600 rounded-sm"></span>
+              <h3 class="text-lg font-bold text-slate-900">Statcast Percentile Rankings</h3>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="savantLegend" class="text-xs text-slate-400">圓圈為 PR 值 / 右側為實測數據</span>
+              <span id="savantYearBadge" class="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded">2026 Season</span>
+            </div>
+          </div>
+          <div id="savantContainer" class="space-y-2.5"></div>
+        </section>
+
+        <section class="lg:col-span-5 space-y-6">
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-emerald-700 text-white px-4 py-2.5 flex items-center justify-between">
+              <span class="font-bold text-sm tracking-wide">FanGraphs Scouting Report</span>
+              <span id="scoutingSeason" class="text-xs bg-emerald-800 px-2 py-0.5 rounded">The Board</span>
+            </div>
+            <div id="scoutingContainer" class="p-4"></div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+            <div class="flex items-center justify-between border-b pb-2 mb-3">
+              <h4 class="text-sm font-bold text-slate-700 uppercase tracking-wider">FanGraphs 進階指標 (附聯盟 PR)</h4>
+              <span id="fgYearTag" class="text-xs text-slate-400 font-semibold">2026</span>
+            </div>
+            <div id="fgMetricsGrid" class="grid grid-cols-3 gap-2.5 text-center"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 投手專屬：球種均速對照 (7欄) + 左右打使用率與 Pitch Run Value (5欄) -->
+      <section id="pitchArsenalSection" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-6 bg-cyan-600 rounded-sm"></span>
+              <h3 class="text-base font-bold text-slate-900">Pitch Arsenal (球種使用率與均速)</h3>
+            </div>
+            <span id="arsenalYearBadge" class="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded">2026</span>
+          </div>
+          <div id="pitchArsenalOverview" class="overflow-x-auto"></div>
+        </div>
+
+        <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-6 bg-rose-600 rounded-sm"></span>
+              <h3 id="pitchUsageTitle" class="text-base font-bold text-slate-900">2026 Pitch Usage (vs. LHH / RHH)</h3>
+            </div>
+            <span class="text-xs text-slate-400">中間為左右打 Pitch Run Value</span>
+          </div>
+          <div id="pitchUsageSplits"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ==================== 視圖 2：雙人對稱比對模式 (Compare View) ==================== -->
+    <div id="compareViewSection" class="hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+        <div class="md:col-span-5 bg-white rounded-xl shadow-sm border-2 border-blue-500/80 p-4 flex flex-col justify-between gap-3">
+          <div class="flex items-center justify-between gap-2">
+            <span class="bg-blue-600 text-white text-xs font-extrabold px-2.5 py-0.5 rounded uppercase tracking-wider">Player 1</span>
+            <select id="cmpYear1" onchange="onCompareYearChange(1)" class="bg-slate-100 text-slate-800 border border-slate-300 rounded px-2.5 py-1 text-xs font-bold cursor-pointer"></select>
+          </div>
+
+          <div class="relative">
+            <input
+              type="text"
+              id="cmpSearch1"
+              placeholder="搜尋 Player 1 英文姓名..."
+              class="w-full bg-slate-50 text-slate-800 placeholder-slate-400 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+              autocomplete="off"
+            />
+            <div id="cmpResults1" class="hidden absolute left-0 right-0 mt-1 bg-white text-slate-800 rounded-lg shadow-xl border border-slate-200 max-h-60 overflow-y-auto z-50"></div>
+          </div>
+
+          <div class="flex items-center gap-3 pt-1">
+            <img id="cmpAvatar1" src="" alt="P1" class="w-16 h-16 rounded-full object-cover bg-slate-100 border-2 border-blue-200" />
+            <div>
+              <h3 id="cmpName1" class="text-xl font-black text-slate-900">-</h3>
+              <p id="cmpMeta1" class="text-xs text-slate-500 font-medium">MLB ID: -</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="md:col-span-2 flex flex-col items-center justify-center gap-2 py-2">
+          <div class="w-12 h-12 rounded-full bg-slate-900 text-white font-black text-sm flex items-center justify-center shadow-md border-2 border-amber-400">
+            VS
+          </div>
+          <span id="cmpRoleBadge" class="text-xs font-bold text-slate-500">打者對決</span>
+        </div>
+
+        <div class="md:col-span-5 bg-white rounded-xl shadow-sm border-2 border-rose-500/80 p-4 flex flex-col justify-between gap-3">
+          <div class="flex items-center justify-between gap-2">
+            <span class="bg-rose-600 text-white text-xs font-extrabold px-2.5 py-0.5 rounded uppercase tracking-wider">Player 2</span>
+            <select id="cmpYear2" onchange="onCompareYearChange(2)" class="bg-slate-100 text-slate-800 border border-slate-300 rounded px-2.5 py-1 text-xs font-bold cursor-pointer"></select>
+          </div>
+
+          <div class="relative">
+            <input
+              type="text"
+              id="cmpSearch2"
+              placeholder="搜尋 Player 2 英文姓名..."
+              class="w-full bg-slate-50 text-slate-800 placeholder-slate-400 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-rose-500"
+              autocomplete="off"
+            />
+            <div id="cmpResults2" class="hidden absolute left-0 right-0 mt-1 bg-white text-slate-800 rounded-lg shadow-xl border border-slate-200 max-h-60 overflow-y-auto z-50"></div>
+          </div>
+
+          <div class="flex items-center gap-3 pt-1">
+            <img id="cmpAvatar2" src="" alt="P2" class="w-16 h-16 rounded-full object-cover bg-slate-100 border-2 border-rose-200" />
+            <div>
+              <h3 id="cmpName2" class="text-xl font-black text-slate-900">-</h3>
+              <p id="cmpMeta2" class="text-xs text-slate-500 font-medium">MLB ID: -</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="grid grid-cols-12 bg-slate-900 text-white py-3 px-4 text-xs font-extrabold uppercase tracking-wider items-center">
+          <div class="col-span-5 text-left sm:text-center text-blue-300">
+            <span id="cmpTableHead1">Player 1</span> · Values & PR
+          </div>
+          <div class="col-span-2 text-center text-amber-300">
+            Compared Items
+          </div>
+          <div class="col-span-5 text-right sm:text-center text-rose-300">
+            <span id="cmpTableHead2">Player 2</span> · Values & PR
+          </div>
+        </div>
+
+        <div class="bg-emerald-50/70 border-y border-emerald-200 px-4 py-2 text-center">
+          <span class="text-xs font-extrabold text-emerald-800 uppercase tracking-widest">FanGraphs Advanced Metrics (實測值 & 聯盟 PR)</span>
+        </div>
+        <div id="cmpFgRows" class="divide-y divide-slate-100 px-3 sm:px-6 py-2"></div>
+
+        <div class="bg-red-50/70 border-y border-red-200 px-4 py-2 text-center">
+          <span class="text-xs font-extrabold text-red-800 uppercase tracking-widest">Baseball Savant Statcast Rankings (實測值 & 官方 PR)</span>
+        </div>
+        <div id="cmpSavantRows" class="divide-y divide-slate-100 px-3 sm:px-6 py-2"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ==================== 合約明細彈出視窗 (Contract Modal) ==================== -->
+  <div id="contractModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" onclick="if(event.target === this) closeContractModal()">
+    <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+      <div class="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between">
+        <div>
+          <h3 id="contractModalTitle" class="font-extrabold text-base tracking-tight">合約明細</h3>
+          <p id="contractModalSub" class="text-xs text-slate-300 mt-0.5">-</p>
+        </div>
+        <button onclick="closeContractModal()" class="text-slate-400 hover:text-white text-xl font-bold leading-none px-2 py-1 rounded hover:bg-slate-800 transition">✕</button>
+      </div>
+      <div id="contractModalBody" class="p-5 overflow-y-auto space-y-4"></div>
+    </div>
+  </div>
+
+  <script>
+    let db = { years: [2026, 2025, 2024], default_year: 2026, players: {} };
+    let currentPlayer = null;
+    let currentYear = "2026";
+    let currentSplit = 'season';
+    let activeRoleMode = 'batter';
+    let pitcherSubType = 'SP';
+    let basePosAbbr = '-';
+    let selectedSeasonTeam = 'ALL';
+    let currentSeasonTeams = [];
+
+    let appView = 'single';
+    let compareRole = 'batter';
+    let cmpState = {
+      1: { id: "660271", year: "2026", officialBars: null },
+      2: { id: null, year: "2026", officialBars: null }
+    };
+
+    const MLB_TEAM_ABBR = {
+      "Arizona Diamondbacks": "ARI", "Athletics": "ATH", "Oakland Athletics": "ATH",
+      "Atlanta Braves": "ATL", "Baltimore Orioles": "BAL", "Boston Red Sox": "BOS",
+      "Chicago Cubs": "CHC", "Chicago White Sox": "CWS", "Cincinnati Reds": "CIN",
+      "Cleveland Guardians": "CLE", "Colorado Rockies": "COL", "Detroit Tigers": "DET",
+      "Houston Astros": "HOU", "Kansas City Royals": "KC", "Los Angeles Angels": "LAA",
+      "Los Angeles Dodgers": "LAD", "Miami Marlins": "MIA", "Milwaukee Brewers": "MIL",
+      "Minnesota Twins": "MIN", "New York Mets": "NYM", "New York Yankees": "NYY",
+      "Philadelphia Phillies": "PHI", "Pittsburgh Pirates": "PIT", "San Diego Padres": "SD",
+      "San Francisco Giants": "SF", "Seattle Mariners": "SEA", "St. Louis Cardinals": "STL",
+      "Tampa Bay Rays": "TB", "Texas Rangers": "TEX", "Toronto Blue Jays": "TOR",
+      "Washington Nationals": "WSH"
+    };
+
+    function toTeamAbbr(teamObj) {
+      if (!teamObj) return null;
+      if (teamObj.abbreviation) return teamObj.abbreviation;
+      if (teamObj.name) return MLB_TEAM_ABBR[teamObj.name] || teamObj.name;
+      return null;
+    }
+
+    function renderContractBadges(rosterInfo) {
+      const box = document.getElementById('playerContractBadges');
+      if (!rosterInfo) {
+        box.innerHTML = '';
+        return;
+      }
+
+      const badges = [];
+      const curYrEntry = (rosterInfo.yearly || []).find(y => String(y.year) === String(currentYear));
+      const curYrSalary = (curYrEntry && curYrEntry.salary && curYrEntry.salary !== '-') ? curYrEntry.salary : null;
+      const hasDetails = Boolean(
+        (rosterInfo.yearly && rosterInfo.yearly.length > 0) ||
+        (rosterInfo.notes && rosterInfo.notes.length > 0) ||
+        rosterInfo.aav ||
+        rosterInfo.fa_year
+      );
+
+      if (rosterInfo.contract) {
+        const curYrSuffix = curYrSalary
+          ? ` <span class="text-slate-400 mx-0.5">·</span> <span class="text-emerald-700 font-extrabold">${currentYear}: ${curYrSalary}</span>`
+          : '';
+        if (hasDetails) {
+          badges.push(`
+            <button onclick="openContractModal()" class="inline-flex items-center gap-1 bg-slate-100 hover:bg-blue-50 text-slate-800 hover:text-blue-900 border border-slate-300 hover:border-blue-400 text-xs font-bold px-2.5 py-0.5 rounded transition cursor-pointer" title="點擊展開合約與逐年薪資明細">
+              <span>💰 ${rosterInfo.contract}${curYrSuffix}</span>
+              <span class="text-[10px] text-slate-500 ml-0.5">▾</span>
+            </button>
+          `);
+        } else {
+          badges.push(`
+            <span class="inline-flex items-center bg-slate-100 text-slate-800 border border-slate-300 text-xs font-bold px-2 py-0.5 rounded" title="合約與薪資">
+              💰 ${rosterInfo.contract}${curYrSuffix}
+            </span>
+          `);
+        }
+      }
+
+      if (rosterInfo.status) {
+        const stLower = rosterInfo.status.toLowerCase();
+        let stCls = 'bg-slate-100 text-slate-700 border-slate-300';
+        if (stLower.includes('pre-arb')) {
+          stCls = 'bg-teal-50 text-teal-800 border-teal-300';
+        } else if (stLower.includes('arb')) {
+          stCls = 'bg-amber-100 text-amber-900 border-amber-300';
+        } else if (stLower.includes('free')) {
+          stCls = 'bg-rose-50 text-rose-800 border-rose-300';
+        }
+        badges.push(`
+          <span class="inline-flex items-center border text-xs font-bold px-2 py-0.5 rounded ${stCls}" title="合約控制權狀態">
+            ${rosterInfo.status}
+          </span>
+        `);
+      }
+
+      if (rosterInfo.options !== null && rosterInfo.options !== undefined) {
+        const optNum = Number(rosterInfo.options);
+        const optCls = optNum > 0
+          ? 'bg-sky-50 text-sky-800 border-sky-300'
+          : 'bg-slate-100 text-slate-500 border-slate-300';
+        const optText = optNum > 0 ? `Options: ${optNum}` : 'No Options';
+        badges.push(`
+          <span class="inline-flex items-center border text-xs font-bold px-2 py-0.5 rounded ${optCls}" title="剩餘小聯盟下放選擇權 (MiLB Options)">
+            ${optText}
+          </span>
+        `);
+      }
+
+      box.innerHTML = badges.join('');
+    }
+
+    function openContractModal() {
+      const p = currentPlayer;
+      const ri = p?.roster_info;
+      if (!ri) return;
+
+      document.getElementById('contractModalTitle').textContent = `${p.name} · 合約明細`;
+      document.getElementById('contractModalSub').textContent = [ri.contract, ri.status].filter(Boolean).join(' · ');
+
+      const summaryCards = [
+        ri.aav ? { label: 'AAV (豪華稅)', val: ri.aav } : null,
+        ri.fa_year ? { label: 'Free Agent', val: ri.fa_year } : null,
+        ri.service_time ? { label: 'Service Time', val: ri.service_time } : null,
+        (ri.options !== null && ri.options !== undefined) ? { label: 'MiLB Options', val: ri.options } : null,
+      ].filter(Boolean);
+
+      const summaryHtml = summaryCards.length > 0 ? `
+        <div class="grid grid-cols-2 sm:grid-cols-${Math.min(4, summaryCards.length)} gap-2.5 text-center">
+          ${summaryCards.map(c => `
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+              <div class="text-[11px] font-bold text-slate-500 uppercase">${c.label}</div>
+              <div class="text-base font-black text-slate-900 mt-0.5">${c.val}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : '';
+
+      const notesHtml = (ri.notes && ri.notes.length > 0) ? `
+        <div class="bg-amber-50/80 border border-amber-200 rounded-lg p-3 space-y-1">
+          <div class="text-xs font-extrabold text-amber-900 uppercase tracking-wider">條款與特殊備註</div>
+          ${ri.notes.map(n => `<p class="text-xs text-amber-950 leading-relaxed">• ${n}</p>`).join('')}
+        </div>
+      ` : '';
+
+      let yearlyHtml = '';
+      if (ri.yearly && ri.yearly.length > 0) {
+        const rows = ri.yearly.map(y => {
+          const isCur = String(y.year) === String(currentYear);
+          const rowCls = isCur ? 'bg-blue-50/80 font-bold' : 'hover:bg-slate-50';
+          const tags = [];
+          if (y.tag) {
+            const tl = y.tag.toLowerCase();
+            let tCls = 'bg-slate-100 text-slate-700 border-slate-300';
+            if (tl.includes('club')) tCls = 'bg-indigo-50 text-indigo-800 border-indigo-300';
+            else if (tl.includes('player')) tCls = 'bg-emerald-50 text-emerald-800 border-emerald-300';
+            else if (tl.includes('mutual') || tl.includes('vest')) tCls = 'bg-purple-50 text-purple-800 border-purple-300';
+            else if (tl.includes('arb')) tCls = 'bg-amber-100 text-amber-900 border-amber-300';
+            tags.push(`<span class="inline-block text-[11px] font-bold px-1.5 py-0.5 rounded border ${tCls}">${y.tag}</span>`);
+          }
+          if (y.opt_out) {
+            tags.push(`<span class="inline-block text-[11px] font-bold px-1.5 py-0.5 rounded border bg-rose-50 text-rose-800 border-rose-300">Opt-Out</span>`);
+          }
+          if (y.buyout) {
+            tags.push(`<span class="inline-block text-[11px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">Buyout: ${y.buyout}</span>`);
+          }
+          if (y.note) {
+            tags.push(`<span class="text-[11px] text-slate-500">${y.note}</span>`);
+          }
+
+          return `
+            <tr class="border-b border-slate-100 last:border-0 ${rowCls}">
+              <td class="py-2 px-3 text-left font-mono ${isCur ? 'text-blue-700 font-black' : 'text-slate-700'}">
+                ${y.year} ${isCur ? '<span class="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded ml-1">本季</span>' : ''}
+              </td>
+              <td class="py-2 px-3 text-right font-mono font-bold text-slate-900">${y.salary}</td>
+              <td class="py-2 px-3 text-right font-mono text-slate-500">${y.aav || '-'}</td>
+              <td class="py-2 px-3 text-left"><div class="flex flex-wrap items-center gap-1">${tags.length ? tags.join('') : '<span class="text-slate-300 text-xs">-</span>'}</div></td>
+            </tr>
+          `;
+        }).join('');
+
+        yearlyHtml = `
+          <div>
+            <div class="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">逐年薪資與選擇權明細</div>
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+              <table class="w-full text-xs border-collapse">
+                <thead class="bg-slate-100 text-slate-600 uppercase border-b border-slate-200">
+                  <tr>
+                    <th class="py-2 px-3 text-left">球季</th>
+                    <th class="py-2 px-3 text-right">薪資</th>
+                    <th class="py-2 px-3 text-right">AAV (豪華稅)</th>
+                    <th class="py-2 px-3 text-left">條款 / 選擇權</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } else {
+        yearlyHtml = `<div class="text-xs text-slate-400 text-center py-3">FanGraphs 頁面未提供逐年拆分明細，僅顯示上述合約總覽。</div>`;
+      }
+
+      document.getElementById('contractModalBody').innerHTML = `${summaryHtml}${notesHtml}${yearlyHtml}`;
+      document.getElementById('contractModal').classList.remove('hidden');
+    }
+
+    function closeContractModal() {
+      document.getElementById('contractModal').classList.add('hidden');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeContractModal();
+    });
+
+    const yearSelect = document.getElementById('yearSelect');
+
+    function getModeData(seasonObj, mode) {
+      if (!seasonObj) return { savant_pr: [], fangraphs: {}, fangraphs_pr: {} };
+      if (mode === 'pitcher' && seasonObj.pitching) {
+        const pitData = seasonObj.pitching;
+        const batList = seasonObj.batting?.savant_pr || [];
+        if (batList.length > 0 && pitData.savant_pr?.length > 0) {
+          const batMap = new Map(batList.map(b => [b.label, b]));
+          const xeraItem = pitData.savant_pr.find(i => i.label === 'xERA');
+          const xwobaPit = pitData.savant_pr.find(i => i.label === 'xwOBA');
+          const xwobaBat = batMap.get('xwOBA');
+          const isPollutedByBatting = (xwobaPit && xwobaBat && xwobaPit.pr === xwobaBat.pr) || (!xeraItem || xeraItem.pr === null);
+
+          if (isPollutedByBatting) {
+            const cleanedList = pitData.savant_pr.map(item => {
+              const bItem = batMap.get(item.label);
+              if (bItem && item.pr === bItem.pr) {
+                return { ...item, pr: null };
+              }
+              if (item.label.includes('Run Value') || item.label === 'GB %' || item.label === 'xERA') {
+                return { ...item, pr: null };
+              }
+              return item;
+            });
+            return { ...pitData, savant_pr: cleanedList };
+          }
+        }
+        return pitData;
+      }
+      if (mode === 'batter' && seasonObj.batting) return seasonObj.batting;
+      return {
+        savant_pr: seasonObj.savant_pr || [],
+        fangraphs: seasonObj.fangraphs || {},
+        fangraphs_pr: seasonObj.fangraphs_pr || {}
+      };
+    }
+
+    function mergeOfficialWithLocalBars(baseList, offBars, role) {
+      if (!offBars || offBars.length === 0) return baseList || [];
+      const officialMap = new Map(offBars.map(item => [item.label, item]));
+      const isPaQual = offBars[0]?.pa_qualified !== false;
+
+      const merged = (baseList || []).map(localItem => {
+        const offItem = officialMap.get(localItem.label);
+        if (!offItem) {
+          if (!isPaQual && !['Fastball Velo', 'Fastball Spin', 'Extension', 'Bat Speed', 'Arm Strength', 'Range (OAA)'].includes(localItem.label)) {
+            return { ...localItem, pr: null };
+          }
+          return localItem;
+        }
+        return {
+          label: localItem.label,
+          pr: offItem.pr,
+          est_pr: (offItem.est_pr !== null && offItem.est_pr !== undefined) ? offItem.est_pr : (localItem.est_pr ?? 50),
+          val: (offItem.val && offItem.val !== '-') ? offItem.val : localItem.val,
+        };
+      });
+
+      const existingLabels = new Set(merged.map(m => m.label));
+      for (const b of offBars) {
+        if (!existingLabels.has(b.label) && (b.pr !== null || (b.val && b.val !== '-'))) {
+          merged.push({
+            label: b.label,
+            pr: b.pr,
+            est_pr: b.est_pr ?? 50,
+            val: b.val,
+          });
+        }
+      }
+      return merged;
+    }
+
+    function formatRvBadge(rv) {
+      const n = Number(rv || 0);
+      if (n > 0) {
+        const cls = n >= 5 ? 'text-red-600 font-black' : 'text-rose-500 font-bold';
+        return `<span class="${cls}">+${n}</span>`;
+      }
+      if (n < 0) {
+        const cls = n <= -5 ? 'text-blue-600 font-black' : 'text-slate-500 font-bold';
+        return `<span class="${cls}">${n}</span>`;
+      }
+      return `<span class="text-slate-400 font-bold">0</span>`;
+    }
+
+    function renderPitchArsenal(arsenal) {
+      const overviewEl = document.getElementById('pitchArsenalOverview');
+      const splitsEl = document.getElementById('pitchUsageSplits');
+      document.getElementById('arsenalYearBadge').textContent = `${currentYear} Season`;
+      document.getElementById('pitchUsageTitle').textContent = `${currentYear} Pitch Usage (vs. LHH / RHH)`;
+
+      if (!arsenal || !arsenal.pitches || arsenal.pitches.length === 0) {
+        overviewEl.innerHTML = `<div class="text-sm text-slate-400 py-8 text-center">${currentYear} 球季暫無球種資料</div>`;
+        splitsEl.innerHTML = `<div class="text-sm text-slate-400 py-8 text-center">${currentYear} 球季暫無左右打球種資料</div>`;
+        return;
+      }
+
+      const pitches = arsenal.pitches;
+      const maxUsage = Math.max(...pitches.map(p => p.usage || 0), 1);
+
+      const headerCols = pitches.map(p => `
+        <th class="px-1.5 pb-2 text-center font-bold text-slate-800 text-xs sm:text-sm whitespace-nowrap">${p.name}</th>
+      `).join('');
+
+      const pillCols = pitches.map(p => {
+        const wPx = Math.max(18, Math.round(18 + (p.usage / maxUsage) * 34));
+        return `
+          <td class="px-1.5 pb-2.5 text-center">
+            <div class="flex flex-col items-center gap-1.5">
+              <div class="h-4 rounded-full border border-slate-400/50 shadow-2xs"
+                   style="width: ${wPx}px; background-color: ${p.color};"></div>
+              <div class="border-b-2 border-dashed border-cyan-600/60" style="width: ${wPx}px;"></div>
+            </div>
+          </td>
+        `;
+      }).join('');
+
+      const usageCols = pitches.map(p => `<td class="px-1.5 py-1.5 text-center font-semibold text-slate-800 text-xs sm:text-sm">${p.usage_str}</td>`).join('');
+      const mphCols = pitches.map(p => `<td class="px-1.5 py-1.5 text-center font-bold text-slate-900 text-xs sm:text-sm">${p.mph !== null && p.mph !== undefined ? p.mph.toFixed(1) : '-'}</td>`).join('');
+      const avgCols = pitches.map(p => `<td class="px-1.5 py-1.5 text-center font-medium text-slate-500 text-xs sm:text-sm">${p.lg_avg_mph !== null && p.lg_avg_mph !== undefined ? p.lg_avg_mph.toFixed(1) : '-'}</td>`).join('');
+
+      overviewEl.innerHTML = `
+        <table class="w-full border-collapse">
+          <thead>
+            <tr>
+              <th class="w-20"></th>
+              ${headerCols}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td></td>
+              ${pillCols}
+            </tr>
+            <tr>
+              <td class="pr-3 py-1.5 text-right text-xs font-extrabold tracking-wider text-cyan-700 whitespace-nowrap">USAGE</td>
+              ${usageCols}
+            </tr>
+            <tr>
+              <td class="pr-3 py-1.5 text-right text-xs font-extrabold tracking-wider text-cyan-700 whitespace-nowrap">MPH</td>
+              ${mphCols}
+            </tr>
+            <tr>
+              <td class="pr-3 py-1.5 text-right text-xs font-bold italic tracking-wider text-cyan-600 whitespace-nowrap">${arsenal.avg_label || 'RHP AVG'}</td>
+              ${avgCols}
+            </tr>
+          </tbody>
+        </table>
+      `;
+
+      const maxSplitUsage = Math.max(
+        ...pitches.map(p => Math.max(p.lhh_usage || 0, p.rhh_usage || 0)),
+        1
+      );
+
+      const splitRows = pitches.map(p => {
+        const lPct = Math.min(100, (p.lhh_usage / maxSplitUsage) * 100);
+        const rPct = Math.min(100, (p.rhh_usage / maxSplitUsage) * 100);
+        const badgeTextCls = p.dark_text ? 'text-slate-900' : 'text-white';
+
+        return `
+          <div class="grid grid-cols-12 items-center py-1.5 gap-1 text-sm">
+            <div class="col-span-4 flex items-center gap-1.5 pr-1.5 border-r-2 border-cyan-600/30">
+              <span class="w-8 text-left font-bold text-slate-800 text-xs shrink-0">${p.lhh_usage_str}</span>
+              <div class="flex-1 flex justify-end">
+                <div class="h-4 rounded-l-full border border-slate-500/40"
+                     style="width: ${p.lhh_usage > 0 ? Math.max(6, lPct) : 0}%; background-color: ${p.color};"></div>
+              </div>
+            </div>
+
+            <div class="col-span-4 flex items-center justify-between px-1 gap-1">
+              <div class="w-7 text-right font-mono text-xs">${formatRvBadge(p.lhh_rv)}</div>
+              <div class="flex-1 text-center text-[11px] font-bold py-0.5 px-1 rounded border border-slate-500/40 truncate ${badgeTextCls}"
+                   style="background-color: ${p.color};" title="${p.name}">
+                ${p.name}
+              </div>
+              <div class="w-7 text-left font-mono text-xs">${formatRvBadge(p.rhh_rv)}</div>
+            </div>
+
+            <div class="col-span-4 flex items-center gap-1.5 pl-1.5 border-l-2 border-cyan-600/30">
+              <div class="flex-1 flex justify-start">
+                <div class="h-4 rounded-r-full border border-slate-500/40"
+                     style="width: ${p.rhh_usage > 0 ? Math.max(6, rPct) : 0}%; background-color: ${p.color};"></div>
+              </div>
+              <span class="w-8 text-right font-bold text-slate-800 text-xs shrink-0">${p.rhh_usage_str}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      splitsEl.innerHTML = `
+        <div class="grid grid-cols-12 items-center pb-2 mb-1 border-b-2 border-cyan-600/40 text-xs font-extrabold text-slate-800">
+          <div class="col-span-4 text-center">Usage vs. LHH</div>
+          <div class="col-span-4 text-center">Pitch Run Value</div>
+          <div class="col-span-4 text-center">Usage vs. RHH</div>
+        </div>
+        <div class="space-y-0.5">${splitRows}</div>
+      `;
+    }
+
+    async function initApp() {
+      try {
+        const res = await fetch('./mlb_data.json');
+        if (!res.ok) throw new Error('尚未產生 mlb_data.json');
+        db = await res.json();
+
+        if (db.years && db.years.length > 0) {
+          const yearOpts = db.years.map(y => `<option value="${y}">${y} 球季</option>`).join('');
+          yearSelect.innerHTML = yearOpts;
+          document.getElementById('cmpYear1').innerHTML = yearOpts;
+          document.getElementById('cmpYear2').innerHTML = yearOpts;
+
+          currentYear = String(db.default_year || db.years[0]);
+          yearSelect.value = currentYear;
+          cmpState[1].year = currentYear;
+          cmpState[2].year = currentYear;
+        }
+      } catch (err) {
+        const banner = document.getElementById('statusBanner');
+        banner.textContent = "無法讀取 mlb_data.json，請確認已執行最新 python fetch_data.py 並透過本地伺服器開啟網頁。";
+        banner.classList.remove('hidden');
+      }
+
+      const defaultId = db.players["660271"] ? "660271" : Object.keys(db.players)[0];
+      selectPlayer(defaultId);
+      initCompareDefaults();
+    }
+
+    function switchAppView(view) {
+      appView = view;
+      const singleSec = document.getElementById('singleViewSection');
+      const compareSec = document.getElementById('compareViewSection');
+      const singleCtrl = document.getElementById('singleHeaderControls');
+      const compareCtrl = document.getElementById('compareHeaderControls');
+      const btnSingle = document.getElementById('navBtnSingle');
+      const btnCompare = document.getElementById('navBtnCompare');
+
+      if (view === 'compare') {
+        singleSec.classList.add('hidden');
+        singleCtrl.classList.add('hidden');
+        compareSec.classList.remove('hidden');
+        compareCtrl.classList.remove('hidden');
+        compareCtrl.classList.add('flex');
+
+        btnCompare.className = "px-3 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition";
+        btnSingle.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition";
+
+        if (currentPlayer) {
+          compareRole = activeRoleMode;
+          cmpState[1].id = String(currentPlayer.mlbam_id);
+          cmpState[1].year = currentYear;
+          document.getElementById('cmpYear1').value = currentYear;
+          syncCompareRoleButtons();
+          ensureValidComparePlayers();
+        }
+        refreshCompareAll();
+      } else {
+        compareSec.classList.add('hidden');
+        compareCtrl.classList.add('hidden');
+        compareCtrl.classList.remove('flex');
+        singleSec.classList.remove('hidden');
+        singleCtrl.classList.remove('hidden');
+
+        btnSingle.className = "px-3 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition";
+        btnCompare.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition";
+      }
+    }
+
+    function playerHasRoleInYear(p, yr, role) {
+      if (!p || !p.seasons) return false;
+      const s = p.seasons[yr];
+      if (!s) return false;
+      if (role === 'pitcher') {
+        return Boolean(s.has_pit && ((s.pitching?.savant_pr?.length > 0) || Object.keys(s.pitching?.fangraphs || {}).length > 0));
+      }
+      return Boolean(s.has_bat && ((s.batting?.savant_pr?.length > 0) || Object.keys(s.batting?.fangraphs || {}).length > 0));
+    }
+
+    function playerHasRoleAnyYear(p, role) {
+      if (!p || !p.seasons) return false;
+      return Object.keys(p.seasons).some(yr => playerHasRoleInYear(p, yr, role));
+    }
+
+    function syncCompareRoleButtons() {
+      const bBat = document.getElementById('cmpRoleBat');
+      const bPit = document.getElementById('cmpRolePit');
+      const badge = document.getElementById('cmpRoleBadge');
+      if (compareRole === 'batter') {
+        bBat.className = "px-3 py-1 text-xs font-bold rounded-md bg-emerald-600 text-white transition";
+        bPit.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition";
+        badge.textContent = "打者對決 (Batters)";
+      } else {
+        bPit.className = "px-3 py-1 text-xs font-bold rounded-md bg-emerald-600 text-white transition";
+        bBat.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition";
+        badge.textContent = "投手對決 (Pitchers)";
+      }
+    }
+
+    function setCompareRole(role) {
+      compareRole = role;
+      syncCompareRoleButtons();
+      ensureValidComparePlayers();
+      refreshCompareAll();
+    }
+
+    function findFallbackPlayerId(role, excludeId) {
+      const preferredBatters = ["660271", "592450", "665742", "677951"];
+      const preferredPitchers = ["694973", "669373", "592789", "660271"];
+      const prefList = role === 'pitcher' ? preferredPitchers : preferredBatters;
+
+      for (const pid of prefList) {
+        if (pid !== String(excludeId) && db.players[pid] && playerHasRoleAnyYear(db.players[pid], role)) {
+          return pid;
+        }
+      }
+      const found = Object.values(db.players).find(
+        p => String(p.mlbam_id) !== String(excludeId) && playerHasRoleAnyYear(p, role)
+      );
+      return found ? String(found.mlbam_id) : Object.keys(db.players)[0];
+    }
+
+    function initCompareDefaults() {
+      cmpState[1].id = findFallbackPlayerId('batter', null);
+      cmpState[2].id = findFallbackPlayerId('batter', cmpState[1].id);
+    }
+
+    function ensureValidComparePlayers() {
+      [1, 2].forEach(slot => {
+        const curP = db.players[cmpState[slot].id];
+        if (!curP || !playerHasRoleAnyYear(curP, compareRole)) {
+          const otherId = slot === 1 ? cmpState[2].id : cmpState[1].id;
+          cmpState[slot].id = findFallbackPlayerId(compareRole, otherId);
+        }
+        const pAfter = db.players[cmpState[slot].id];
+        if (pAfter && !playerHasRoleInYear(pAfter, cmpState[slot].year, compareRole)) {
+          const validYr = (db.years || [2026, 2025, 2024]).find(y => playerHasRoleInYear(pAfter, String(y), compareRole));
+          if (validYr) {
+            cmpState[slot].year = String(validYr);
+            document.getElementById(`cmpYear${slot}`).value = String(validYr);
+          }
+        }
+      });
+    }
+
+    function setupCompareSearch(slot) {
+      const inputEl = document.getElementById(`cmpSearch${slot}`);
+      const resEl = document.getElementById(`cmpResults${slot}`);
+
+      inputEl.addEventListener('input', (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        if (!q) {
+          resEl.classList.add('hidden');
+          return;
+        }
+        const matches = Object.values(db.players)
+          .filter(p => p.name.toLowerCase().includes(q) && playerHasRoleAnyYear(p, compareRole))
+          .slice(0, 12);
+
+        if (matches.length === 0) {
+          resEl.innerHTML = `<div class="px-4 py-2.5 text-xs text-slate-400">找不到符合該身分 (${compareRole === 'batter' ? '打者' : '投手'}) 的球員</div>`;
+        } else {
+          resEl.innerHTML = matches.map(p => `
+            <button onclick="selectComparePlayer(${slot}, '${p.mlbam_id}')" class="w-full text-left px-3.5 py-2 hover:bg-blue-50 flex items-center justify-between border-b border-slate-100 last:border-0">
+              <span class="font-bold text-sm text-slate-800">${p.name}</span>
+              <span class="text-[11px] text-slate-400">ID: ${p.mlbam_id}</span>
+            </button>
+          `).join('');
+        }
+        resEl.classList.remove('hidden');
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!inputEl.contains(e.target) && !resEl.contains(e.target)) {
+          resEl.classList.add('hidden');
+        }
+      });
+    }
+
+    setupCompareSearch(1);
+    setupCompareSearch(2);
+
+    function selectComparePlayer(slot, mlbamId) {
+      document.getElementById(`cmpResults${slot}`).classList.add('hidden');
+      document.getElementById(`cmpSearch${slot}`).value = '';
+      cmpState[slot].id = String(mlbamId);
+
+      const p = db.players[mlbamId];
+      if (p && !playerHasRoleInYear(p, cmpState[slot].year, compareRole)) {
+        const validYr = (db.years || [2026, 2025, 2024]).find(y => playerHasRoleInYear(p, String(y), compareRole));
+        if (validYr) {
+          cmpState[slot].year = String(validYr);
+          document.getElementById(`cmpYear${slot}`).value = String(validYr);
+        }
+      }
+      refreshCompareSlot(slot);
+    }
+
+    function onCompareYearChange(slot) {
+      cmpState[slot].year = document.getElementById(`cmpYear${slot}`).value;
+      refreshCompareSlot(slot);
+    }
+
+    async function refreshCompareAll() {
+      await Promise.all([refreshCompareSlot(1), refreshCompareSlot(2)]);
+    }
+
+    async function refreshCompareSlot(slot) {
+      const st = cmpState[slot];
+      const p = db.players[st.id];
+      if (!p) return;
+
+      document.getElementById(`cmpName${slot}`).textContent = p.name;
+      document.getElementById(`cmpMeta${slot}`).textContent = `${st.year} Season · MLB ID: ${p.mlbam_id}`;
+      document.getElementById(`cmpAvatar${slot}`).src = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${p.mlbam_id}/headshot/67/current`;
+      document.getElementById(`cmpTableHead${slot}`).textContent = `${p.name} (${st.year})`;
+
+      st.officialBars = null;
+      renderComparisonTables();
+
+      const reqId = p.mlbam_id;
+      const reqYr = st.year;
+      const reqRole = compareRole;
+      try {
+        const r = await fetch(`/api/savant_bars/${reqId}/${reqYr}/${reqRole}`);
+        if (r.ok) {
+          const data = await r.json();
+          if (data?.bars && cmpState[slot].id === String(reqId) && cmpState[slot].year === String(reqYr) && compareRole === reqRole) {
+            cmpState[slot].officialBars = data.bars;
+            renderComparisonTables();
+          }
+        }
+      } catch (_) {}
+    }
+
+    function getMergedSavantMapForCompare(slot) {
+      const st = cmpState[slot];
+      const p = db.players[st.id];
+      const sObj = p?.seasons?.[st.year];
+      const modeData = getModeData(sObj, compareRole);
+      const mergedList = mergeOfficialWithLocalBars(modeData.savant_pr || [], st.officialBars, compareRole);
+      return new Map(mergedList.map(item => [item.label, item]));
+    }
+
+    function buildLeftCellHtml(valStr, pr, estPr, isWinner) {
+      const hasPr = pr !== null && pr !== undefined;
+      const pct = Math.max(0, Math.min(100, hasPr ? pr : (estPr ?? 50)));
+      const color = getPrColor(pct);
+      const winValCls = isWinner ? 'text-slate-950 font-black bg-amber-100/90 border border-amber-300 px-1.5 py-0.5 rounded shadow-2xs' : 'text-slate-700 font-bold';
+
+      if (hasPr) {
+        return `
+          <div class="flex items-center gap-2.5 w-full">
+            <div class="w-16 text-left font-mono text-xs sm:text-sm shrink-0 ${winValCls}">${valStr}</div>
+            <div class="flex-1 relative h-5 flex items-center">
+              <div class="w-full h-2.5 rounded-full savant-bar-bg-rev relative">
+                <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400"></span>
+              </div>
+              <div class="absolute right-0 h-2.5 rounded-full" style="width: ${pct}%; background-color: ${color}; opacity: 0.85;"></div>
+              <div class="absolute w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center shadow border-2 border-white transform translate-x-1/2"
+                   style="right: calc(${pct}% + ${12 - pct * 0.24}px); background-color: ${color};">
+                ${pr}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (valStr === '-') {
+        return `<div class="text-left text-xs text-slate-300 font-mono">-</div>`;
+      }
+
+      const hatchCls = pct >= 50 ? 'hatched-bar-red' : 'hatched-bar-blue';
+      return `
+        <div class="flex items-center gap-2.5 w-full opacity-85">
+          <div class="w-16 text-left font-mono text-xs sm:text-sm shrink-0 ${winValCls}">${valStr}</div>
+          <div class="flex-1 relative h-5 flex items-center">
+            <div class="w-full h-2.5 rounded-sm bg-slate-100 relative overflow-hidden">
+              <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-300"></span>
+              <div class="absolute right-0 top-0 bottom-0 ${hatchCls}" style="width: ${pct}%;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function buildRightCellHtml(valStr, pr, estPr, isWinner) {
+      const hasPr = pr !== null && pr !== undefined;
+      const pct = Math.max(0, Math.min(100, hasPr ? pr : (estPr ?? 50)));
+      const color = getPrColor(pct);
+      const winValCls = isWinner ? 'text-slate-950 font-black bg-amber-100/90 border border-amber-300 px-1.5 py-0.5 rounded shadow-2xs' : 'text-slate-700 font-bold';
+
+      if (hasPr) {
+        return `
+          <div class="flex items-center gap-2.5 w-full">
+            <div class="flex-1 relative h-5 flex items-center">
+              <div class="w-full h-2.5 rounded-full savant-bar-bg relative">
+                <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400"></span>
+              </div>
+              <div class="absolute left-0 h-2.5 rounded-full" style="width: ${pct}%; background-color: ${color}; opacity: 0.85;"></div>
+              <div class="absolute w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center shadow border-2 border-white transform -translate-x-1/2"
+                   style="left: calc(${pct}% + ${12 - pct * 0.24}px); background-color: ${color};">
+                ${pr}
+              </div>
+            </div>
+            <div class="w-16 text-right font-mono text-xs sm:text-sm shrink-0 ${winValCls}">${valStr}</div>
+          </div>
+        `;
+      }
+
+      if (valStr === '-') {
+        return `<div class="text-right text-xs text-slate-300 font-mono">-</div>`;
+      }
+
+      const hatchCls = pct >= 50 ? 'hatched-bar-red' : 'hatched-bar-blue';
+      return `
+        <div class="flex items-center gap-2.5 w-full opacity-85">
+          <div class="flex-1 relative h-5 flex items-center">
+            <div class="w-full h-2.5 rounded-sm bg-slate-100 relative overflow-hidden">
+              <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-300"></span>
+              <div class="h-full ${hatchCls}" style="width: ${pct}%;"></div>
+            </div>
+          </div>
+          <div class="w-16 text-right font-mono text-xs sm:text-sm shrink-0 ${winValCls}">${valStr}</div>
+        </div>
+      `;
+    }
+
+    function decideWinner(val1, pr1, val2, pr2, lowerIsBetter = false) {
+      const n1 = parseFloat(String(val1).replace('%', ''));
+      const n2 = parseFloat(String(val2).replace('%', ''));
+      if (!isNaN(n1) && !isNaN(n2) && n1 !== n2) {
+        if (lowerIsBetter) return n1 < n2 ? 1 : 2;
+        return n1 > n2 ? 1 : 2;
+      }
+      if (pr1 !== null && pr1 !== undefined && pr2 !== null && pr2 !== undefined) {
+        if (pr1 > pr2) return 1;
+        if (pr2 > pr1) return 2;
+      }
+      return 0;
+    }
+
+    function renderComparisonTables() {
+      const p1 = db.players[cmpState[1].id];
+      const p2 = db.players[cmpState[2].id];
+      const m1 = getModeData(p1?.seasons?.[cmpState[1].year], compareRole);
+      const m2 = getModeData(p2?.seasons?.[cmpState[2].year], compareRole);
+
+      const fgKeys = compareRole === 'batter'
+        ? ['fWAR', 'OPS+', 'wRC+', 'wOBA', 'ISO', 'BABIP', 'BsR', 'Def']
+        : ['fWAR', 'ERA+', 'FIP', 'xFIP', 'SIERA', 'HR/9', 'LOB%', 'Stuff+'];
+
+      const lowerBetterFg = new Set(['FIP', 'xFIP', 'SIERA', 'HR/9']);
+
+      const fgRowsHtml = fgKeys.map(k => {
+        const raw1 = m1.fangraphs?.[k];
+        const raw2 = m2.fangraphs?.[k];
+        const v1 = k === 'fWAR' && raw1 !== undefined && raw1 !== null && !isNaN(parseFloat(raw1)) ? parseFloat(raw1).toFixed(1) : formatFgMetricVal(k, raw1);
+        const v2 = k === 'fWAR' && raw2 !== undefined && raw2 !== null && !isNaN(parseFloat(raw2)) ? parseFloat(raw2).toFixed(1) : formatFgMetricVal(k, raw2);
+        const pr1 = m1.fangraphs_pr?.[k] ?? null;
+        const pr2 = m2.fangraphs_pr?.[k] ?? null;
+        const win = decideWinner(v1, pr1, v2, pr2, lowerBetterFg.has(k));
+
+        return `
+          <div class="grid grid-cols-12 items-center py-2.5 gap-2 hover:bg-slate-50/80 transition">
+            <div class="col-span-5">${buildLeftCellHtml(v1, pr1, pr1, win === 1)}</div>
+            <div class="col-span-2 text-center font-extrabold text-xs sm:text-sm text-slate-800 bg-slate-100 py-1 px-1.5 rounded border border-slate-200/80 truncate" title="${k}">${k}</div>
+            <div class="col-span-5">${buildRightCellHtml(v2, pr2, pr2, win === 2)}</div>
+          </div>
+        `;
+      }).join('');
+      document.getElementById('cmpFgRows').innerHTML = fgRowsHtml;
+
+      const savantKeys = compareRole === 'batter'
+        ? [
+            'xwOBA', 'xBA', 'xSLG', 'Avg Exit Velo', 'Barrel %', 'Hard-Hit %',
+            'LA Sweet-Spot %', 'Bat Speed', 'Squared-Up %', 'Chase %', 'Whiff %',
+            'K %', 'BB %', 'Range (OAA)', 'Arm Strength'
+          ]
+        : [
+            'Pitching Run Value', 'Fastball Run Value', 'Breaking Run Value', 'Offspeed Run Value',
+            'xERA', 'xwOBA', 'xBA', 'Fastball Velo', 'Fastball Spin', 'Avg Exit Velo',
+            'Chase %', 'Whiff %', 'K %', 'BB %', 'Barrel %', 'Hard-Hit %', 'GB %', 'Extension'
+          ];
+
+      const map1 = getMergedSavantMapForCompare(1);
+      const map2 = getMergedSavantMapForCompare(2);
+
+      const savantRowsHtml = savantKeys.map(label => {
+        const d1 = map1.get(label) || { val: '-', pr: null, est_pr: 50 };
+        const d2 = map2.get(label) || { val: '-', pr: null, est_pr: 50 };
+        const lowerBetterSavant = compareRole === 'batter'
+          ? ['Chase %', 'Whiff %', 'K %'].includes(label)
+          : ['xERA', 'xwOBA', 'xBA', 'Avg Exit Velo', 'BB %', 'Barrel %', 'Hard-Hit %'].includes(label);
+
+        const win = decideWinner(d1.val, d1.pr, d2.val, d2.pr, lowerBetterSavant);
+
+        return `
+          <div class="grid grid-cols-12 items-center py-2.5 gap-2 hover:bg-slate-50/80 transition">
+            <div class="col-span-5">${buildLeftCellHtml(d1.val, d1.pr, d1.est_pr, win === 1)}</div>
+            <div class="col-span-2 text-center font-bold text-[11px] sm:text-xs text-slate-700 bg-slate-100 py-1 px-1.5 rounded border border-slate-200/80 truncate" title="${label}">${label}</div>
+            <div class="col-span-5">${buildRightCellHtml(d2.val, d2.pr, d2.est_pr, win === 2)}</div>
+          </div>
+        `;
+      }).join('');
+      document.getElementById('cmpSavantRows').innerHTML = savantRowsHtml;
+    }
+
+    // ==================== 單人儀表板邏輯 ====================
+    yearSelect.addEventListener('change', (e) => {
+      currentYear = e.target.value;
+      selectedSeasonTeam = 'ALL';
+      if (currentPlayer) {
+        const sObj = currentPlayer.seasons?.[currentYear];
+        activeRoleMode = sObj?.role || currentPlayer.role || 'batter';
+        renderCurrentPlayerForYear();
+      }
+    });
+
+    function switchRoleMode(mode) {
+      activeRoleMode = mode;
+      renderCurrentPlayerForYear();
+    }
+
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+
+    searchInput.addEventListener('input', (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      if (!q) {
+        searchResults.classList.add('hidden');
+        return;
+      }
+      const matches = Object.values(db.players)
+        .filter(p => p.name.toLowerCase().includes(q))
+        .slice(0, 12);
+
+      if (matches.length === 0) {
+        searchResults.innerHTML = `<div class="px-4 py-3 text-sm text-slate-400">找不到符合的球員</div>`;
+      } else {
+        searchResults.innerHTML = matches.map(p => `
+          <button onclick="selectPlayer('${p.mlbam_id}')" class="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center justify-between border-b border-slate-100 last:border-0">
+            <div>
+              <span class="font-semibold text-slate-800">${p.name}</span>
+            </div>
+            <span class="text-xs text-slate-400">MLB ID: ${p.mlbam_id}</span>
+          </button>
+        `).join('');
+      }
+      searchResults.classList.remove('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+        searchResults.classList.add('hidden');
+      }
+    });
+
+    function getFwarTier(fwar, pr, role, subType) {
+      if (fwar === undefined || fwar === null || fwar === 'N/A') {
+        return { text: '暫無評級', cls: 'bg-slate-200 text-slate-600' };
+      }
+      const val = parseFloat(fwar);
+      const prStr = pr ? `PR ${pr} · ` : '';
+
+      if (role === 'pitcher') {
+        if (subType === 'RP') {
+          if (val >= 2.5) return { text: `${prStr}年度最佳後援級`, cls: 'bg-red-600 text-white' };
+          if (val >= 1.5) return { text: `${prStr}頂尖終結者/佈局`, cls: 'bg-orange-500 text-white' };
+          if (val >= 0.8) return { text: `${prStr}勝利組主力牛棚`, cls: 'bg-emerald-600 text-white' };
+          if (val >= 0.2) return { text: `${prStr}一般牛棚輪替`, cls: 'bg-slate-200 text-slate-700' };
+          return { text: `${prStr}替換水準以下`, cls: 'bg-blue-100 text-blue-800' };
+        } else {
+          if (val >= 6.0) return { text: `${prStr}賽揚獎等級`, cls: 'bg-red-600 text-white' };
+          if (val >= 4.5) return { text: `${prStr}球隊王牌 (Ace)`, cls: 'bg-rose-600 text-white' };
+          if (val >= 3.0) return { text: `${prStr}前段輪值`, cls: 'bg-orange-500 text-white' };
+          if (val >= 1.8) return { text: `${prStr}稱職先發輪值`, cls: 'bg-emerald-600 text-white' };
+          if (val >= 0.5) return { text: `${prStr}後段輪值/長中繼`, cls: 'bg-slate-200 text-slate-700' };
+          return { text: `${prStr}替換水準以下`, cls: 'bg-blue-100 text-blue-800' };
+        }
+      }
+
+      if (val >= 7.5 && (!pr || pr >= 98)) return { text: `${prStr}MVP 級巨星`, cls: 'bg-red-600 text-white' };
+      if (val >= 5.5 && (!pr || pr >= 95)) return { text: `${prStr}MVP 競爭者`, cls: 'bg-rose-600 text-white' };
+      if (val >= 4.0 && (!pr || pr >= 88)) return { text: `${prStr}全明星主力`, cls: 'bg-orange-500 text-white' };
+      if (val >= 2.0) return { text: `${prStr}稱職先發`, cls: 'bg-emerald-600 text-white' };
+      if (val >= 0.5) return { text: `${prStr}輪替/替補`, cls: 'bg-slate-200 text-slate-700' };
+      return { text: `${prStr}替換水準以下`, cls: 'bg-blue-100 text-blue-800' };
+    }
+
+    function getPrBadgeStyle(pr) {
+      if (pr === undefined || pr === null) return null;
+      if (pr >= 90) return { label: `PR ${pr} · 頂尖`, cls: 'bg-red-100 text-red-700 border-red-200' };
+      if (pr >= 75) return { label: `PR ${pr} · 優秀`, cls: 'bg-orange-100 text-orange-700 border-orange-200' };
+      if (pr >= 50) return { label: `PR ${pr} · 中上`, cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+      if (pr >= 25) return { label: `PR ${pr} · 偏低`, cls: 'bg-slate-100 text-slate-600 border-slate-200' };
+      return { label: `PR ${pr} · 後段`, cls: 'bg-blue-100 text-blue-700 border-blue-200' };
+    }
+
+    function updateFwarBadgeUI() {
+      if (!currentPlayer) return;
+      const seasonObj = currentPlayer.seasons?.[currentYear];
+      const modeData = getModeData(seasonObj, activeRoleMode);
+      const fg = modeData.fangraphs || {};
+      const fgPr = modeData.fangraphs_pr || {};
+
+      const fwarTier = getFwarTier(fg.fWAR, fgPr.fWAR, activeRoleMode, pitcherSubType);
+      const fwarBadgeEl = document.getElementById('fwarTierBadge');
+      fwarBadgeEl.textContent = fwarTier.text;
+      fwarBadgeEl.className = `inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full ${fwarTier.cls}`;
+    }
+
+    function applyLiveFgStatsToPlayer(p, yr, role, liveStats) {
+      if (!p || !liveStats || Object.keys(liveStats).length === 0) return;
+      if (!p.seasons) p.seasons = {};
+      if (!p.seasons[yr]) p.seasons[yr] = { role };
+      const sObj = p.seasons[yr];
+      const subKey = role === 'pitcher' ? 'pitching' : 'batting';
+      if (!sObj[subKey]) sObj[subKey] = { savant_pr: [], fangraphs: {}, fangraphs_pr: {} };
+      if (!sObj[subKey].fangraphs) sObj[subKey].fangraphs = {};
+
+      const targetFg = sObj[subKey].fangraphs;
+      for (const [k, v] of Object.entries(liveStats)) {
+        if (targetFg[k] === undefined || targetFg[k] === null || targetFg[k] === 'N/A' || targetFg[k] === '-') {
+          targetFg[k] = v;
+        }
+      }
+
+      if (currentPlayer?.mlbam_id === p.mlbam_id && currentYear === String(yr) && activeRoleMode === role) {
+        document.getElementById('fwarVal').textContent =
+          (targetFg.fWAR !== undefined && targetFg.fWAR !== null && targetFg.fWAR !== 'N/A' && !isNaN(parseFloat(targetFg.fWAR)))
+            ? parseFloat(targetFg.fWAR).toFixed(1)
+            : 'N/A';
+        updateFwarBadgeUI();
+        renderFgMetrics(targetFg, sObj[subKey].fangraphs_pr || {});
+      }
+    }
+
+    async function selectPlayer(mlbamId) {
+      searchResults.classList.add('hidden');
+      const p = db.players[mlbamId];
+      if (!p) return;
+      currentPlayer = p;
+      pitcherSubType = 'SP';
+      basePosAbbr = '-';
+      selectedSeasonTeam = 'ALL';
+
+      const sObj = p.seasons?.[currentYear];
+      activeRoleMode = sObj?.role || p.role || 'batter';
+
+      document.getElementById('playerName').textContent = p.name;
+      document.getElementById('playerAvatar').src = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${p.mlbam_id}/headshot/67/current`;
+
+      const teamEl = document.getElementById('playerCurrentTeam');
+      teamEl.classList.add('hidden');
+      teamEl.textContent = '';
+      renderContractBadges(p.roster_info || null);
+
+      const initialFgUrl = p.fg_resolved_url
+        || (p.fg_id && String(p.fg_id) !== '-1' ? `https://www.fangraphs.com/players/-/${p.fg_id}/stats` : `https://www.fangraphs.com/search?q=${encodeURIComponent(p.name)}`);
+
+      const linksHtml = [
+        { name: 'Baseball Savant', url: `https://baseballsavant.mlb.com/savant-player/${p.mlbam_id}`, color: 'bg-red-600 hover:bg-red-700' },
+        { id: 'fgExternalLink', name: 'FanGraphs', url: initialFgUrl, color: 'bg-emerald-600 hover:bg-emerald-700' },
+        p.bbref_id ? { name: 'Baseball-Reference (查 bWAR)', url: `https://www.baseball-reference.com/players/${p.bbref_id[0]}/${p.bbref_id}.shtml`, color: 'bg-amber-600 hover:bg-amber-700' } : null,
+        { name: 'MLB.com', url: `https://www.mlb.com/player/${p.mlbam_id}`, color: 'bg-blue-600 hover:bg-blue-700' }
+      ].filter(Boolean).map(l => `
+        <a ${l.id ? `id="${l.id}"` : ''} href="${l.url}" target="_blank" class="${l.color} text-white text-xs font-semibold px-3 py-1.5 rounded shadow-sm transition">
+          ${l.name} ↗
+        </a>
+      `).join('');
+      document.getElementById('externalLinks').innerHTML = linksHtml;
+
+      try {
+        const infoRes = await fetch(`https://statsapi.mlb.com/api/v1/people/${p.mlbam_id}?hydrate=currentTeam`);
+        const infoData = await infoRes.json();
+        const person = infoData.people?.[0];
+        if (person && currentPlayer?.mlbam_id === p.mlbam_id) {
+          basePosAbbr = person.primaryPosition?.abbreviation || '-';
+          document.getElementById('playerPos').textContent = basePosAbbr;
+          document.getElementById('playerMeta').textContent =
+            `B/T: ${person.batSide?.code || '-'}/${person.pitchHand?.code || '-'} | Age: ${person.currentAge || '-'} | #${person.primaryNumber || '-'}`;
+
+          const curTeamAbbr = toTeamAbbr(person.currentTeam);
+          if (curTeamAbbr) {
+            teamEl.textContent = curTeamAbbr;
+            teamEl.title = person.currentTeam?.name || curTeamAbbr;
+            teamEl.classList.remove('hidden');
+          }
+        }
+      } catch (_) {}
+
+      await renderCurrentPlayerForYear();
+    }
+
+    async function loadAndRenderScouting(p, yr, role) {
+      const container = document.getElementById('scoutingContainer');
+      if (p.scouting) {
+        renderScoutingCard(p.scouting);
+      } else {
+        container.innerHTML = `<div class="text-center py-6 text-slate-400 text-xs">正在查詢 FanGraphs 球探報告與合約資訊...</div>`;
+      }
+
+      const reqId = p.mlbam_id;
+      try {
+        const res = await fetch(
+          `/api/scouting/${p.fg_id || '0'}?name=${encodeURIComponent(p.name)}&year=${encodeURIComponent(yr)}&role=${encodeURIComponent(role)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.resolved_url) {
+            p.fg_resolved_url = data.resolved_url;
+            if (currentPlayer?.mlbam_id === reqId) {
+              const fgBtn = document.getElementById('fgExternalLink');
+              if (fgBtn) fgBtn.href = data.resolved_url;
+            }
+          }
+          if (data.roster_info) {
+            p.roster_info = data.roster_info;
+            if (currentPlayer?.mlbam_id === reqId) {
+              renderContractBadges(data.roster_info);
+            }
+          }
+          if (data.fg_stats) {
+            applyLiveFgStatsToPlayer(p, yr, role, data.fg_stats);
+          }
+          if (data.scouting) {
+            p.scouting = data.scouting;
+            if (currentPlayer?.mlbam_id === reqId) {
+              renderScoutingCard(data.scouting);
+            }
+            return;
+          }
+        }
+      } catch (_) {}
+
+      if (currentPlayer?.mlbam_id === reqId && !p.scouting) {
+        renderScoutingCard(null);
+      }
+    }
+
+    async function renderCurrentPlayerForYear() {
+      const p = currentPlayer;
+      if (!p) return;
+
+      document.getElementById('topStatYearLabel').textContent = currentYear;
+      document.getElementById('savantYearBadge').textContent = `${currentYear} Season`;
+      document.getElementById('fgYearTag').textContent = `${currentYear} Season`;
+
+      // 切換球季時同步更新合約標籤上的當年度薪資
+      renderContractBadges(p.roster_info || null);
+
+      const seasonObj = p.seasons?.[currentYear];
+
+      const switchBox = document.getElementById('twoWaySwitch');
+      const btnBat = document.getElementById('btnModeBat');
+      const btnPit = document.getElementById('btnModePit');
+
+      if (seasonObj?.has_bat && seasonObj?.has_pit) {
+        switchBox.classList.remove('hidden');
+        if (activeRoleMode === 'batter') {
+          btnBat.className = "px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition";
+          btnPit.className = "px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition";
+        } else {
+          btnPit.className = "px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition";
+          btnBat.className = "px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition";
+        }
+      } else {
+        switchBox.classList.add('hidden');
+      }
+
+      const modeData = getModeData(seasonObj, activeRoleMode);
+      const fg = modeData.fangraphs || {};
+      const fgPr = modeData.fangraphs_pr || {};
+
+      document.getElementById('fwarVal').textContent =
+        (fg.fWAR !== undefined && fg.fWAR !== null && fg.fWAR !== 'N/A' && !isNaN(parseFloat(fg.fWAR)))
+          ? parseFloat(fg.fWAR).toFixed(1)
+          : 'N/A';
+      updateFwarBadgeUI();
+
+      const secTitle = document.getElementById('secondaryHeroTitle');
+      const secVal = document.getElementById('secondaryHeroVal');
+      const secBadge = document.getElementById('secondaryTierBadge');
+
+      if (activeRoleMode === 'pitcher') {
+        secTitle.textContent = 'Standard ERA+';
+        secVal.textContent = fg['ERA+'] ?? 'N/A';
+        const b = getPrBadgeStyle(fgPr['ERA+']);
+        secBadge.textContent = b ? b.label : '100 為聯盟平均';
+        secBadge.className = `inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${b ? b.cls : 'bg-slate-100 text-slate-600 border-slate-200'}`;
+      } else {
+        secTitle.textContent = 'Standard OPS+';
+        secVal.textContent = fg['OPS+'] ?? 'N/A';
+        const b = getPrBadgeStyle(fgPr['OPS+']);
+        secBadge.textContent = b ? b.label : '100 為聯盟平均';
+        secBadge.className = `inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${b ? b.cls : 'bg-slate-100 text-slate-600 border-slate-200'}`;
+      }
+
+      renderSavantBars(modeData.savant_pr, activeRoleMode);
+      renderFgMetrics(fg, fgPr);
+
+      loadAndRenderScouting(p, currentYear, activeRoleMode);
+
+      const reqPlayerId = p.mlbam_id;
+      const reqYear = currentYear;
+      const reqRole = activeRoleMode;
+
+      fetch(`/api/savant_bars/${reqPlayerId}/${reqYear}/${reqRole}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(resData => {
+          if (
+            resData?.bars &&
+            resData.bars.length > 0 &&
+            currentPlayer?.mlbam_id === reqPlayerId &&
+            currentYear === reqYear &&
+            activeRoleMode === reqRole
+          ) {
+            const merged = mergeOfficialWithLocalBars(modeData.savant_pr || [], resData.bars, reqRole);
+            renderSavantBars(merged, reqRole);
+          }
+        })
+        .catch(() => {});
+
+      const arsenalSec = document.getElementById('pitchArsenalSection');
+      if (activeRoleMode === 'pitcher') {
+        arsenalSec.classList.remove('hidden');
+        document.getElementById('pitchArsenalOverview').innerHTML = `<div class="text-xs text-slate-400 py-6 text-center">正在載入 Statcast 球種均速與使用率...</div>`;
+        document.getElementById('pitchUsageSplits').innerHTML = `<div class="text-xs text-slate-400 py-6 text-center">正在載入左右打球種分布與 Run Value...</div>`;
+
+        fetch(`/api/pitch_arsenal/${reqPlayerId}/${reqYear}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(resData => {
+            if (currentPlayer?.mlbam_id === reqPlayerId && currentYear === reqYear && activeRoleMode === 'pitcher') {
+              renderPitchArsenal(resData?.arsenal || null);
+            }
+          })
+          .catch(() => {
+            if (currentPlayer?.mlbam_id === reqPlayerId && currentYear === reqYear && activeRoleMode === 'pitcher') {
+              renderPitchArsenal(null);
+            }
+          });
+      } else {
+        arsenalSec.classList.add('hidden');
+      }
+
+      await fetchTopBarStats(p.mlbam_id, activeRoleMode, currentYear, currentSplit);
+    }
+
+    function selectSeasonTeam(teamAbbr) {
+      if (selectedSeasonTeam === teamAbbr) return;
+      selectedSeasonTeam = teamAbbr;
+      renderSeasonTeamControls();
+      if (currentPlayer) {
+        fetchTopBarStats(currentPlayer.mlbam_id, activeRoleMode, currentYear, currentSplit);
+      }
+    }
+
+    function renderSeasonTeamControls() {
+      const box = document.getElementById('seasonTeamControls');
+      if (!currentSeasonTeams || currentSeasonTeams.length === 0) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        return;
+      }
+
+      if (currentSeasonTeams.length === 1) {
+        box.innerHTML = `
+          <span class="px-2 py-0.5 rounded bg-slate-800 border border-emerald-500/50 text-emerald-300 font-extrabold text-[11px] tracking-normal">
+            賽時隊伍：${currentSeasonTeams[0].abbr}
+          </span>
+        `;
+        box.classList.remove('hidden');
+        return;
+      }
+
+      const options = [{ abbr: 'ALL', label: '全季' }, ...currentSeasonTeams.map(t => ({ abbr: t.abbr, label: t.abbr }))];
+      box.innerHTML = `
+        <div class="inline-flex items-center rounded bg-slate-800 p-0.5 border border-emerald-500/50">
+          ${options.map(opt => {
+            const active = selectedSeasonTeam === opt.abbr;
+            const cls = active
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'text-slate-300 hover:text-white hover:bg-slate-700';
+            return `
+              <button onclick="selectSeasonTeam('${opt.abbr}')" class="px-2 py-0.5 rounded text-[11px] font-extrabold tracking-normal transition ${cls}">
+                ${opt.label}
+              </button>
+            `;
+          }).join('')}
+        </div>
+      `;
+      box.classList.remove('hidden');
+    }
+
+    function updateSeasonTeamBadgeFromSplits(splits) {
+      const teams = [];
+      const seen = new Set();
+      for (const s of (splits || [])) {
+        const abbr = toTeamAbbr(s.team);
+        if (abbr && !seen.has(abbr)) {
+          seen.add(abbr);
+          teams.push({ abbr, id: s.team?.id || null });
+        }
+      }
+      currentSeasonTeams = teams;
+      if (selectedSeasonTeam !== 'ALL' && !seen.has(selectedSeasonTeam)) {
+        selectedSeasonTeam = 'ALL';
+      }
+      renderSeasonTeamControls();
+    }
+
+    function aggregateGameLogByMonth(glSplits, group) {
+      const byM = {};
+      for (const s of glSplits) {
+        if (!s.date || !s.stat) continue;
+        const m = parseInt(s.date.split('-')[1], 10);
+        if (!m) continue;
+        const st = s.stat;
+        const cur = byM[m] || (byM[m] = {
+          month: m, G: 0, GS: 0, PA: 0, AB: 0, H: 0, HR: 0, RBI: 0, BB: 0, SO: 0, SB: 0,
+          TB: 0, HBP: 0, SF: 0, W: 0, L: 0, ER: 0, outs: 0
+        });
+        cur.G += 1;
+        cur.H += Number(st.hits || 0);
+        cur.HR += Number(st.homeRuns || 0);
+        cur.BB += Number(st.baseOnBalls || 0);
+        cur.SO += Number(st.strikeOuts || 0);
+        if (group === 'hitting') {
+          cur.PA += Number(st.plateAppearances || 0);
+          cur.AB += Number(st.atBats || 0);
+          cur.RBI += Number(st.rbi || 0);
+          cur.SB += Number(st.stolenBases || 0);
+          cur.TB += Number(st.totalBases || 0);
+          cur.HBP += Number(st.hitByPitch || 0);
+          cur.SF += Number(st.sacFlies || 0);
+        } else {
+          cur.GS += Number(st.gamesStarted || 0);
+          cur.W += Number(st.wins || 0);
+          cur.L += Number(st.losses || 0);
+          cur.ER += Number(st.earnedRuns || 0);
+          const ipParts = String(st.inningsPitched || '0').split('.');
+          cur.outs += (parseInt(ipParts[0], 10) || 0) * 3 + (parseInt(ipParts[1], 10) || 0);
+        }
+      }
+      return Object.values(byM).map(c => {
+        if (group === 'hitting') {
+          const avg = c.AB > 0 ? (c.H / c.AB).toFixed(3).replace(/^0/, '') : '.000';
+          const obpDen = c.AB + c.BB + c.HBP + c.SF;
+          const obpNum = obpDen > 0 ? (c.H + c.BB + c.HBP) / obpDen : 0;
+          const slgNum = c.AB > 0 ? c.TB / c.AB : 0;
+          return {
+            month: c.month,
+            stat: {
+              gamesPlayed: c.G, plateAppearances: c.PA, atBats: c.AB, hits: c.H,
+              homeRuns: c.HR, rbi: c.RBI, baseOnBalls: c.BB, strikeOuts: c.SO,
+              stolenBases: c.SB, avg,
+              obp: obpNum.toFixed(3).replace(/^0/, ''),
+              slg: slgNum.toFixed(3).replace(/^0/, ''),
+              ops: (obpNum + slgNum).toFixed(3).replace(/^0/, '')
+            }
+          };
+        } else {
+          const ipFloat = c.outs / 3;
+          const ipStr = `${Math.floor(c.outs / 3)}.${c.outs % 3}`;
+          return {
+            month: c.month,
+            stat: {
+              wins: c.W, losses: c.L,
+              era: ipFloat > 0 ? ((c.ER * 9) / ipFloat).toFixed(2) : '0.00',
+              gamesPlayed: c.G, gamesStarted: c.GS, inningsPitched: ipStr,
+              hits: c.H, homeRuns: c.HR, baseOnBalls: c.BB, strikeOuts: c.SO,
+              whip: ipFloat > 0 ? ((c.BB + c.H) / ipFloat).toFixed(2) : '0.00',
+              avg: '-'
+            }
+          };
+        }
+      });
+    }
+
+    async function fetchTopBarStats(mlbamId, role, seasonYear, splitCode) {
+      const grid = document.getElementById('topSeasonStatGrid');
+      const monthWrapper = document.getElementById('topMonthlyTableWrapper');
+      const group = role === 'pitcher' ? 'pitching' : 'hitting';
+
+      try {
+        const sRes = await fetch(`https://statsapi.mlb.com/api/v1/people/${mlbamId}/stats?stats=season&group=${group}&season=${seasonYear}`);
+        const sData = await sRes.json();
+        const seasonSplits = sData.stats?.[0]?.splits || [];
+        updateSeasonTeamBadgeFromSplits(seasonSplits);
+
+        if (role === 'pitcher') {
+          const totalSplit = seasonSplits.find(s => !s.team) || seasonSplits[0];
+          const baseSt = totalSplit?.stat;
+          if (baseSt && baseSt.gamesPlayed > 0) {
+            const gsRatio = (baseSt.gamesStarted || 0) / baseSt.gamesPlayed;
+            pitcherSubType = gsRatio < 0.4 ? 'RP' : 'SP';
+            if (basePosAbbr !== 'TWP') {
+              document.getElementById('playerPos').textContent = pitcherSubType;
+            }
+            updateFwarBadgeUI();
+          }
+        } else if (basePosAbbr !== '-') {
+          document.getElementById('playerPos').textContent = basePosAbbr;
+        }
+      } catch (_) {}
+
+      const selectedTeamObj = selectedSeasonTeam !== 'ALL'
+        ? currentSeasonTeams.find(t => t.abbr === selectedSeasonTeam)
+        : null;
+
+      try {
+        let url = '';
+        if (splitCode === 'season') {
+          url = `https://statsapi.mlb.com/api/v1/people/${mlbamId}/stats?stats=season&group=${group}&season=${seasonYear}`;
+        } else if (splitCode === 'byMonth') {
+          url = `https://statsapi.mlb.com/api/v1/people/${mlbamId}/stats?stats=byMonth&group=${group}&season=${seasonYear}`;
+        } else {
+          url = `https://statsapi.mlb.com/api/v1/people/${mlbamId}/stats?stats=statSplits&group=${group}&season=${seasonYear}&sitCodes=${splitCode}`;
+          if (selectedTeamObj?.id) {
+            url += `&teamId=${selectedTeamObj.id}`;
+          }
+        }
+
+        const res = await fetch(url);
+        const data = await res.json();
+        let splits = data.stats?.[0]?.splits || [];
+
+        const isMatchTeam = (s) => {
+          if (selectedSeasonTeam === 'ALL') return true;
+          if (selectedTeamObj?.id && s.team?.id) {
+            return String(s.team.id) === String(selectedTeamObj.id);
+          }
+          return toTeamAbbr(s.team) === selectedSeasonTeam;
+        };
+
+        if (splitCode === 'byMonth') {
+          if (selectedSeasonTeam !== 'ALL') {
+            const filtered = splits.filter(isMatchTeam);
+            if (filtered.length > 0) {
+              splits = filtered;
+            } else if (selectedTeamObj?.id) {
+              const glRes = await fetch(`https://statsapi.mlb.com/api/v1/people/${mlbamId}/stats?stats=gameLog&group=${group}&season=${seasonYear}`);
+              const glData = await glRes.json();
+              const glSplits = (glData.stats?.[0]?.splits || []).filter(isMatchTeam);
+              splits = aggregateGameLogByMonth(glSplits, group);
+            }
+          }
+          grid.classList.add('hidden');
+          monthWrapper.classList.remove('hidden');
+          renderMonthlyTable(splits, group, seasonYear);
+          return;
+        }
+
+        monthWrapper.classList.add('hidden');
+        grid.classList.remove('hidden');
+
+        let targetSplit = null;
+        if (selectedSeasonTeam !== 'ALL') {
+          targetSplit = splits.find(isMatchTeam) || splits[0];
+        } else {
+          targetSplit = splits.find(s => !s.team) || splits[0];
+        }
+        const st = targetSplit?.stat;
+        if (!st) {
+          grid.innerHTML = `<div class="col-span-10 text-xs text-slate-400 py-2">此分項條件下 ${seasonYear} 球季無數據</div>`;
+          return;
+        }
+
+        const items = group === 'hitting' ? [
+          { k: 'G', v: st.gamesPlayed },
+          { k: 'PA', v: st.plateAppearances },
+          { k: 'H', v: st.hits },
+          { k: 'HR', v: st.homeRuns, hi: true },
+          { k: 'RBI', v: st.rbi },
+          { k: 'SB', v: st.stolenBases },
+          { k: 'AVG', v: st.avg },
+          { k: 'OBP', v: st.obp },
+          { k: 'SLG', v: st.slg },
+          { k: 'OPS', v: st.ops, hi: true },
+        ] : [
+          { k: 'W-L', v: `${st.wins ?? 0}-${st.losses ?? 0}` },
+          { k: 'ERA', v: st.era, hi: true },
+          { k: 'G', v: st.gamesPlayed },
+          { k: 'GS', v: st.gamesStarted },
+          { k: 'IP', v: st.inningsPitched },
+          { k: 'H', v: st.hits },
+          { k: 'HR', v: st.homeRuns },
+          { k: 'BB', v: st.baseOnBalls },
+          { k: 'SO', v: st.strikeOuts, hi: true },
+          { k: 'WHIP', v: st.whip, hi: true },
+        ];
+
+        grid.innerHTML = items.map(item => `
+          <div class="bg-slate-800/80 rounded px-2 py-1.5 border border-slate-700/70">
+            <div class="text-[10px] font-bold text-slate-400 uppercase">${item.k}</div>
+            <div class="text-sm sm:text-base font-extrabold ${item.hi ? 'text-amber-400' : 'text-white'}">${item.v ?? '-'}</div>
+          </div>
+        `).join('');
+      } catch (_) {
+        monthWrapper.classList.add('hidden');
+        grid.classList.remove('hidden');
+        grid.innerHTML = `<div class="col-span-10 text-xs text-slate-400 py-2">MLB 官方數據載入失敗</div>`;
+      }
+    }
+
+    function renderMonthlyTable(splits, group, seasonYear) {
+      const thead = document.getElementById('monthlyTableHead');
+      const tbody = document.getElementById('monthlyTableBody');
+
+      if (!splits.length) {
+        thead.innerHTML = '';
+        tbody.innerHTML = `<tr><td class="py-3 text-center text-slate-400">${seasonYear} 球季尚無逐月出賽紀錄</td></tr>`;
+        return;
+      }
+
+      const sortedSplits = [...splits].sort((a, b) => Number(a.month || 99) - Number(b.month || 99));
+
+      if (group === 'hitting') {
+        thead.innerHTML = `
+          <th class="py-2 px-2.5 text-left">月份</th>
+          <th class="py-2 px-2">G</th><th class="py-2 px-2">PA</th><th class="py-2 px-2">AB</th>
+          <th class="py-2 px-2">H</th><th class="py-2 px-2">HR</th><th class="py-2 px-2">RBI</th>
+          <th class="py-2 px-2">BB</th><th class="py-2 px-2">SO</th><th class="py-2 px-2">SB</th>
+          <th class="py-2 px-2">AVG</th><th class="py-2 px-2">OBP</th><th class="py-2 px-2">SLG</th>
+          <th class="py-2 px-2.5 text-amber-400 font-bold">OPS</th>
+        `;
+        tbody.innerHTML = sortedSplits.map(s => {
+          const st = s.stat;
+          const mLabel = s.month ? `${s.month} 月` : (s.split?.description || '-');
+          return `
+            <tr class="hover:bg-slate-800/60">
+              <td class="py-1.5 px-2.5 text-left font-bold text-blue-300">${mLabel}</td>
+              <td class="py-1.5 px-2">${st.gamesPlayed ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.plateAppearances ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.atBats ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.hits ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.homeRuns ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.rbi ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.baseOnBalls ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.strikeOuts ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.stolenBases ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.avg ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.obp ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.slg ?? '-'}</td>
+              <td class="py-1.5 px-2.5 font-extrabold text-amber-400">${st.ops ?? '-'}</td>
+            </tr>
+          `;
+        }).join('');
+      } else {
+        thead.innerHTML = `
+          <th class="py-2 px-2.5 text-left">月份</th>
+          <th class="py-2 px-2">W-L</th><th class="py-2 px-2 text-amber-400">ERA</th><th class="py-2 px-2">G</th>
+          <th class="py-2 px-2">GS</th><th class="py-2 px-2">IP</th><th class="py-2 px-2">H</th>
+          <th class="py-2 px-2">HR</th><th class="py-2 px-2">BB</th><th class="py-2 px-2">SO</th>
+          <th class="py-2 px-2 text-amber-400">WHIP</th><th class="py-2 px-2.5">AVG</th>
+        `;
+        tbody.innerHTML = sortedSplits.map(s => {
+          const st = s.stat;
+          const mLabel = s.month ? `${s.month} 月` : (s.split?.description || '-');
+          return `
+            <tr class="hover:bg-slate-800/60">
+              <td class="py-1.5 px-2.5 text-left font-bold text-blue-300">${mLabel}</td>
+              <td class="py-1.5 px-2">${st.wins ?? 0}-${st.losses ?? 0}</td>
+              <td class="py-1.5 px-2 font-extrabold text-amber-400">${st.era ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.gamesPlayed ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.gamesStarted ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.inningsPitched ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.hits ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.homeRuns ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.baseOnBalls ?? '-'}</td>
+              <td class="py-1.5 px-2">${st.strikeOuts ?? '-'}</td>
+              <td class="py-1.5 px-2 font-extrabold text-amber-400">${st.whip ?? '-'}</td>
+              <td class="py-1.5 px-2.5">${st.avg ?? '-'}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    function getPrColor(pr) {
+      if (pr >= 90) return '#dc2626';
+      if (pr >= 70) return '#ef4444';
+      if (pr >= 55) return '#f87171';
+      if (pr >= 45) return '#94a3b8';
+      if (pr >= 25) return '#60a5fa';
+      return '#2563eb';
+    }
+
+    function renderSavantBars(prList, role) {
+      const container = document.getElementById('savantContainer');
+      const legend = document.getElementById('savantLegend');
+
+      if (!prList || prList.length === 0) {
+        container.innerHTML = `<div class="text-sm text-slate-400 py-8 text-center">${currentYear} 球季暫無 Statcast 數據</div>`;
+        return;
+      }
+
+      const hasUnqualified = prList.some(item => item.pr === null || item.pr === undefined);
+      legend.textContent = hasUnqualified
+        ? '斜線為未達官方PR門檻之參考分布 / 右側為實測數據'
+        : '圓圈為 PR 值 / 右側為實測數據';
+
+      let renderedPitchingDivider = false;
+
+      container.innerHTML = prList.map((item, idx) => {
+        const { label, pr, est_pr, val } = item;
+        const isFieldingStart = label === 'Range (OAA)';
+        const isValueStart = idx === 0 && label.includes('Run Value');
+        const isPitchingStart = role === 'pitcher' && !label.includes('Run Value') && !renderedPitchingDivider;
+        if (isPitchingStart) renderedPitchingDivider = true;
+
+        let sectionHeader = '';
+        if (isValueStart) {
+          sectionHeader = '<div class="pb-1 mb-1 border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">Pitch Value (Run Value)</div>';
+        } else if (isPitchingStart && idx > 0) {
+          sectionHeader = '<div class="pt-2 mt-2 border-t border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">Pitching Metrics</div>';
+        } else if (isFieldingStart) {
+          sectionHeader = '<div class="pt-2 mt-2 border-t border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">Fielding</div>';
+        }
+
+        if (pr !== null && pr !== undefined) {
+          const color = getPrColor(pr);
+          const clampedPr = Math.max(0, Math.min(100, pr));
+          return `
+            ${sectionHeader}
+            <div class="grid grid-cols-12 items-center gap-2 text-sm">
+              <div class="col-span-4 text-right font-semibold text-slate-700 truncate" title="${label}">${label}</div>
+              <div class="col-span-6 relative h-5 flex items-center">
+                <div class="w-full h-2.5 rounded-full savant-bar-bg relative">
+                  <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400"></span>
+                </div>
+                <div class="absolute left-0 h-2.5 rounded-full" style="width: ${clampedPr}%; background-color: ${color}; opacity: 0.85;"></div>
+                <div class="absolute w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center shadow border-2 border-white transform -translate-x-1/2"
+                     style="left: calc(${clampedPr}% + ${12 - clampedPr * 0.24}px); background-color: ${color};">
+                  ${pr}
+                </div>
+              </div>
+              <div class="col-span-2 text-right font-mono font-bold text-slate-800 text-xs">${val}</div>
+            </div>
+          `;
+        }
+
+        const est = Math.max(5, Math.min(95, est_pr ?? 50));
+        const hatchClass = est >= 50 ? 'hatched-bar-red' : 'hatched-bar-blue';
+        return `
+          ${sectionHeader}
+          <div class="grid grid-cols-12 items-center gap-2 text-sm opacity-90">
+            <div class="col-span-4 text-right font-medium text-slate-500 truncate" title="${label}">${label}</div>
+            <div class="col-span-6 relative h-5 flex items-center">
+              <div class="w-full h-2.5 rounded-sm bg-slate-100 relative overflow-hidden">
+                <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-300"></span>
+                <div class="h-full ${hatchClass}" style="width: ${est}%;"></div>
+              </div>
+            </div>
+            <div class="col-span-2 text-right font-mono font-bold text-slate-700 text-xs">${val}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function isValidScoutVal(v) {
+      return v !== null && v !== undefined && String(v).trim() !== '' && !['null', 'None', 'N/A', '-'].includes(String(v).trim());
+    }
+
+    function renderScoutingCard(scouting) {
+      const container = document.getElementById('scoutingContainer');
+      if (!scouting) {
+        container.innerHTML = `
+          <div class="text-center py-6 text-slate-400 text-sm">
+            此球員無公開新秀球探報告（或需透過 python server.py 啟動以即時讀取 FanGraphs 報告）。
+          </div>`;
+        return;
+      }
+
+      const metaBadges = [
+        isValidScoutVal(scouting.org_rk) ? { label: 'Org Rk', val: scouting.org_rk } : null,
+        isValidScoutVal(scouting.ovr_rk) ? { label: 'Ovr Rk', val: scouting.ovr_rk } : null,
+        isValidScoutVal(scouting.eta) ? { label: 'ETA / Status', val: scouting.eta } : null,
+        isValidScoutVal(scouting.fv) ? { label: 'FV', val: scouting.fv, highlight: true } : null,
+      ].filter(Boolean);
+
+      const colsClass = metaBadges.length === 1 ? 'grid-cols-1' : metaBadges.length === 2 ? 'grid-cols-2' : metaBadges.length === 3 ? 'grid-cols-3' : 'grid-cols-4';
+      const metaHtml = metaBadges.length > 0 ? `
+        <div class="grid ${colsClass} gap-2 mb-3 text-center">
+          ${metaBadges.map(m => `
+            <div class="border border-slate-300 rounded overflow-hidden">
+              <div class="bg-slate-200 text-[11px] font-bold py-0.5">${m.label}</div>
+              <div class="text-sm font-extrabold py-1 ${m.highlight ? 'text-emerald-700' : 'text-slate-900'}">${m.val}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : '';
+
+      const toolsHtml = Object.entries(scouting.tools || {}).map(([tool, val]) => `
+        <div class="border border-slate-300 rounded overflow-hidden text-center">
+          <div class="bg-slate-200 text-slate-700 text-xs font-bold py-1 px-1 truncate">${tool}</div>
+          <div class="bg-white text-slate-900 text-sm font-extrabold py-1.5">${val}</div>
+        </div>
+      `).join('');
+
+      container.innerHTML = `
+        <div class="text-xs font-bold text-emerald-700 mb-2">Report: ${scouting.report_title}</div>
+        ${metaHtml}
+        <div class="grid grid-cols-3 gap-2 mb-3">${toolsHtml}</div>
+        <div class="bg-slate-50 border border-slate-200 rounded p-2.5 text-xs text-slate-700 leading-relaxed max-h-28 overflow-y-auto">
+          <strong class="text-slate-900">TLDR:</strong> ${scouting.tldr}
+        </div>
+      `;
+    }
+
+    function formatFgMetricVal(k, v) {
+      if (v === undefined || v === null || v === '-') return '-';
+      const num = parseFloat(v);
+      if (isNaN(num)) return v;
+      if (['wOBA', 'ISO', 'BABIP'].includes(k)) {
+        return num.toFixed(3);
+      }
+      if (['FIP', 'xFIP', 'SIERA', 'HR/9'].includes(k)) {
+        return num.toFixed(2);
+      }
+      if (['BsR', 'Def'].includes(k)) {
+        return num.toFixed(1);
+      }
+      return v;
+    }
+
+    function renderFgMetrics(fg, fgPr) {
+      const grid = document.getElementById('fgMetricsGrid');
+      const skipKeys = new Set(['fWAR', 'OPS+', 'ERA+']);
+      const entries = Object.entries(fg || {}).filter(([k]) => !skipKeys.has(k));
+
+      if (entries.length === 0) {
+        grid.innerHTML = `<div class="col-span-3 text-xs text-slate-400 py-2">${currentYear} 球季暫無 FanGraphs 數據</div>`;
+        return;
+      }
+
+      grid.innerHTML = entries.map(([k, v]) => {
+        const prVal = fgPr?.[k];
+        const badge = getPrBadgeStyle(prVal);
+        const displayVal = formatFgMetricVal(k, v);
+        return `
+          <div class="bg-slate-50 rounded-lg p-2.5 border border-slate-200/80 flex flex-col items-center justify-between">
+            <div class="text-xs text-slate-500 font-bold">${k}</div>
+            <div class="text-lg font-black text-slate-900 my-0.5">${displayVal}</div>
+            ${badge
+              ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded border ${badge.cls}">${badge.label}</span>`
+              : `<span class="text-[10px] text-slate-400">-</span>`
+            }
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.querySelectorAll('.split-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.split-btn').forEach(b => {
+          b.classList.remove('bg-blue-600', 'text-white');
+          b.classList.add('bg-slate-800', 'text-slate-300');
+        });
+        btn.classList.remove('bg-slate-800', 'text-slate-300');
+        btn.classList.add('bg-blue-600', 'text-white');
+
+        currentSplit = btn.dataset.split;
+        document.getElementById('topSplitTitle').textContent = btn.dataset.title;
+
+        if (currentPlayer) {
+          fetchTopBarStats(currentPlayer.mlbam_id, activeRoleMode, currentYear, currentSplit);
+        }
+      });
+    });
+
+    initApp();
+  </script>
+</body>
+</html>
