@@ -62,15 +62,13 @@
           class="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-blue-500 cursor-pointer"
         >
           <option value="2026">2026 球季</option>
-          <option value="2025">2025 球季</option>
-          <option value="2024">2024 球季</option>
         </select>
 
         <div class="relative flex-1 md:w-80">
           <input
             type="text"
             id="searchInput"
-            placeholder="輸入球員英文姓名 (如 Ohtani, Acuna, Mize)..."
+            placeholder="輸入球員英文姓名 (如 Ohtani, Trout, Kershaw)..."
             class="w-full bg-slate-800 text-white placeholder-slate-400 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
             autocomplete="off"
           />
@@ -118,9 +116,7 @@
                 </div>
               </div>
 
-              <!-- 獨立成第二列：薪資（含當年度薪資，可點擊展開明細）、仲裁狀態、Options -->
               <div id="playerContractBadges" class="flex flex-wrap items-center gap-1.5 mt-2 empty:hidden"></div>
-
               <div class="flex flex-wrap items-center gap-2 mt-2.5" id="externalLinks"></div>
             </div>
           </div>
@@ -170,6 +166,9 @@
             </table>
           </div>
         </div>
+
+        <!-- 相似球員推薦列 -->
+        <div id="similarPlayersBar" class="hidden bg-slate-50 border-t border-slate-200 px-5 py-2.5 flex flex-wrap items-center gap-2"></div>
       </section>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -202,6 +201,15 @@
               <span id="fgYearTag" class="text-xs text-slate-400 font-semibold">2026</span>
             </div>
             <div id="fgMetricsGrid" class="grid grid-cols-3 gap-2.5 text-center"></div>
+
+            <!-- 獨立風格輪廓區 (中性特徵 + 當年度聯盟平均對照) -->
+            <div id="styleProfileSection" class="hidden mt-4 pt-3.5 border-t border-slate-200">
+              <div class="flex items-center justify-between mb-2.5">
+                <h5 class="text-xs font-extrabold text-slate-600 uppercase tracking-wider">風格輪廓 (Profile & Approach)</h5>
+                <span class="text-[10px] text-slate-400 font-semibold">中性特徵 · 附當季聯盟平均</span>
+              </div>
+              <div id="styleProfileGrid" class="grid grid-cols-3 gap-2.5 text-center"></div>
+            </div>
           </div>
         </section>
       </div>
@@ -233,7 +241,7 @@
     </div>
 
     <!-- ==================== 視圖 2：雙人對稱比對模式 (Compare View) ==================== -->
-    <div id="compareViewSection" class="hidden space-y-6">
+    <div id="compareViewSection" class="hidden space-y-5">
       <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
         <div class="md:col-span-5 bg-white rounded-xl shadow-sm border-2 border-blue-500/80 p-4 flex flex-col justify-between gap-3">
           <div class="flex items-center justify-between gap-2">
@@ -295,6 +303,9 @@
         </div>
       </div>
 
+      <!-- Compare 模式：推薦相似對手列 -->
+      <div id="cmpSimilarBar" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-2"></div>
+
       <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="grid grid-cols-12 bg-slate-900 text-white py-3 px-4 text-xs font-extrabold uppercase tracking-wider items-center">
           <div class="col-span-5 text-left sm:text-center text-blue-300">
@@ -317,6 +328,11 @@
           <span class="text-xs font-extrabold text-red-800 uppercase tracking-widest">Baseball Savant Statcast Rankings (實測值 & 官方 PR)</span>
         </div>
         <div id="cmpSavantRows" class="divide-y divide-slate-100 px-3 sm:px-6 py-2"></div>
+
+        <div class="bg-slate-100 border-y border-slate-200 px-4 py-2 text-center">
+          <span class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">Profile & Approach (風格輪廓對照 · 中性特徵非好壞評級)</span>
+        </div>
+        <div id="cmpStyleRows" class="divide-y divide-slate-100 px-3 sm:px-6 py-2"></div>
       </section>
     </div>
   </main>
@@ -336,7 +352,7 @@
   </div>
 
   <script>
-    let db = { years: [2026, 2025, 2024], default_year: 2026, players: {} };
+    let db = { years: [2026], default_year: 2026, players: {} };
     let currentPlayer = null;
     let currentYear = "2026";
     let currentSplit = 'season';
@@ -345,6 +361,10 @@
     let basePosAbbr = '-';
     let selectedSeasonTeam = 'ALL';
     let currentSeasonTeams = [];
+
+    let simYearFrom = 2015;
+    let simYearTo = 2026;
+    let simBatterMode = 'full';
 
     let appView = 'single';
     let compareRole = 'batter';
@@ -366,6 +386,453 @@
       "Tampa Bay Rays": "TB", "Texas Rangers": "TEX", "Toronto Blue Jays": "TOR",
       "Washington Nationals": "WSH"
     };
+
+    // ==================== 風格輪廓標籤 (Arm Angle 採絕對角度，其餘採 5 段 PR) ====================
+    const STYLE_LABELS = {
+      'GB%':       { vlow: '極端飛球',     low: '飛球傾向', mid: '均衡彈道', high: '滾球傾向', vhigh: '極端滾球' },
+      'Pull%':     { vlow: '極端反方向',   low: '廣角傾向', mid: '均衡噴射', high: '拉打傾向', vhigh: '極端強拉' },
+      'Z-Swing%':  { vlow: '極度耐心',     low: '耐心選球', mid: '均衡出棒', high: '積極出棒', vhigh: '極度積極' },
+      'Zone%':     { vlow: '極端邊角',     low: '邊角引誘', mid: '均衡進壘', high: '積極進壘', vhigh: '狂塞好球帶' },
+      'Arm Angle': { vlow: '下勾/極低側投', low: '低肩/側投', mid: '四分之三', high: '偏高壓',   vhigh: '高壓正投' },
+    };
+
+    function getStyleTag(metric, pr, valStr = null) {
+      if (metric === 'Arm Angle') {
+        const deg = parseStyleNum(valStr);
+        if (!isNaN(deg)) {
+          if (deg < 0)   return { text: '下勾',         cls: 'bg-indigo-100 text-indigo-800 border-indigo-300' };
+          if (deg < 20)  return { text: '側投',         cls: 'bg-indigo-100 text-indigo-800 border-indigo-300' };
+          if (deg <= 32) return { text: '低肩四分之三', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+          if (deg <= 47) return { text: '四分之三',     cls: 'bg-slate-100 text-slate-600 border-slate-200' };
+          if (deg <= 59) return { text: '偏高壓',       cls: 'bg-violet-50 text-violet-700 border-violet-200' };
+          return { text: '高壓正投', cls: 'bg-violet-100 text-violet-800 border-violet-300' };
+        }
+      }
+      const cfg = STYLE_LABELS[metric];
+      if (!cfg || pr === null || pr === undefined) return null;
+      const n = Number(pr);
+      if (n <= 10) return { text: cfg.vlow,  cls: 'bg-indigo-100 text-indigo-800 border-indigo-300' };
+      if (n <= 29) return { text: cfg.low,   cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+      if (n >= 90) return { text: cfg.vhigh, cls: 'bg-violet-100 text-violet-800 border-violet-300' };
+      if (n >= 71) return { text: cfg.high,  cls: 'bg-violet-50 text-violet-700 border-violet-200' };
+      return { text: cfg.mid, cls: 'bg-slate-100 text-slate-600 border-slate-200' };
+    }
+
+    let styleAvgCache = {};
+
+    function parseStyleNum(valStr) {
+      if (valStr === null || valStr === undefined || valStr === '-') return NaN;
+      return parseFloat(String(valStr).replace(/[%°]/g, ''));
+    }
+
+    function getLeagueStyleAvg(year, role) {
+      const cacheKey = `${year}_${role}`;
+      if (styleAvgCache[cacheKey]) return styleAvgCache[cacheKey];
+
+      const keys = role === 'batter' ? ['GB%', 'Pull%', 'Z-Swing%'] : ['Zone%', 'Arm Angle'];
+      const qualSums = Object.fromEntries(keys.map(k => [k, 0]));
+      const qualCnts = Object.fromEntries(keys.map(k => [k, 0]));
+      const allSums = Object.fromEntries(keys.map(k => [k, 0]));
+      const allCnts = Object.fromEntries(keys.map(k => [k, 0]));
+
+      for (const p of Object.values(db.players)) {
+        const sObj = p.seasons?.[String(year)];
+        if (!sObj || !playerHasRoleInYear(p, String(year), role)) continue;
+        const m = getModeData(sObj, role);
+        const raw = m.sim_raw;
+        if (!raw) continue;
+
+        const isQual = role === 'pitcher'
+          ? (Number(sObj.pitching?.ip || 0) >= 15 || (m.savant_pr || []).some(i => i.pr !== null))
+          : (m.savant_pr || []).some(i => i.pr !== null);
+
+        for (const k of keys) {
+          const num = parseStyleNum(raw[k]);
+          if (!isNaN(num)) {
+            allSums[k] += num;
+            allCnts[k] += 1;
+            if (isQual) {
+              qualSums[k] += num;
+              qualCnts[k] += 1;
+            }
+          }
+        }
+      }
+
+      const result = {};
+      for (const k of keys) {
+        if (qualCnts[k] >= 20) result[k] = qualSums[k] / qualCnts[k];
+        else if (allCnts[k] > 0) result[k] = allSums[k] / allCnts[k];
+      }
+      styleAvgCache[cacheKey] = result;
+      return result;
+    }
+
+    function formatStyleDiffText(metric, valStr, lgAvg) {
+      if (lgAvg === undefined || lgAvg === null || isNaN(lgAvg)) return '';
+      const valNum = parseStyleNum(valStr);
+      const isDeg = metric === 'Arm Angle';
+      const avgText = isDeg ? `${Math.round(lgAvg)}°` : `${lgAvg.toFixed(1)}%`;
+      if (isNaN(valNum)) return `聯盟 ${avgText}`;
+      const diff = valNum - lgAvg;
+      const sign = diff > 0 ? '+' : '';
+      const diffStr = isDeg ? `${sign}${Math.round(diff)}°` : `${sign}${diff.toFixed(1)}%`;
+      return `聯盟 ${avgText} (${diffStr})`;
+    }
+
+    // ==================== 相似球員演算法 (內建 SP/RP、IP 過濾、缺項微懲罰與高重疊門檻) ====================
+    const BATTER_CORE_SAVANT = [
+      ['Avg Exit Velo', 0.8],
+      ['Barrel %', 0.8],
+      ['Hard-Hit %', 0.8],
+      ['LA Sweet-Spot %', 1.0],
+      ['Bat Speed', 0.8],
+      ['Chase %', 1.0],
+      ['Whiff %', 1.0],
+      ['K %', 1.0],
+      ['BB %', 1.0],
+      ['xwOBA', 0.6],
+    ];
+
+    const BATTER_CORE_SIM = [
+      ['GB%', 0.8],
+      ['Pull%', 0.8],
+      ['Z-Swing%', 0.8],
+    ];
+
+    const SIM_FEATURES = {
+      batter_batting: {
+        savant: BATTER_CORE_SAVANT,
+        fg: [],
+        sim: BATTER_CORE_SIM,
+      },
+      batter_full: {
+        savant: BATTER_CORE_SAVANT,
+        fg: [
+          ['BsR', 1.8],
+          ['Def', 2.0],
+        ],
+        sim: BATTER_CORE_SIM,
+      },
+      pitcher: {
+        savant: [
+          ['Fastball Velo', 1.0],
+          ['Fastball Spin', 1.0],
+          ['Extension', 1.0],
+          ['GB %', 1.0],
+          ['K %', 1.0],
+          ['BB %', 1.0],
+          ['Fastball Run Value', 0.5],
+          ['Breaking Run Value', 0.5],
+          ['Offspeed Run Value', 0.5],
+        ],
+        fg: [],
+        sim: [
+          ['Zone%', 0.8],
+          ['Arm Angle', 0.9],
+        ],
+        mix: [
+          ['FF', 2.5],
+          ['SI', 2.5],
+          ['FC', 2.5],
+          ['SL', 2.5],
+          ['CU', 2.5],
+          ['CH', 2.5],
+        ],
+      }
+    };
+
+    function setSimBatterMode(mode) {
+      if (simBatterMode === mode) return;
+      simBatterMode = mode;
+      renderSimilarPlayersInSingle();
+      renderSimilarPlayersInCompare();
+    }
+
+    function buildSimBatterModeHtml() {
+      const fullCls = simBatterMode === 'full'
+        ? 'bg-blue-600 text-white shadow-2xs'
+        : 'text-slate-600 hover:text-slate-900';
+      const batCls = simBatterMode === 'batting'
+        ? 'bg-blue-600 text-white shadow-2xs'
+        : 'text-slate-600 hover:text-slate-900';
+      return `
+        <span class="inline-flex items-center rounded-md bg-white p-0.5 border border-slate-300 text-[11px] font-bold shadow-2xs" title="切換打者相似度計算維度">
+          <button onclick="setSimBatterMode('full')" class="px-2 py-0.5 rounded transition cursor-pointer ${fullCls}" title="包含打擊＋彈道/拉打/好球帶積極度＋高權重跑壘(BsR)與守備(Def)">完整型態</button>
+          <button onclick="setSimBatterMode('batting')" class="px-2 py-0.5 rounded transition cursor-pointer ${batCls}" title="僅比對擊球物理、彈道/拉打、本壘板紀律與 xwOBA，排除跑壘與守備">純打擊</button>
+        </span>
+      `;
+    }
+
+    function onSimYearRangeChange(bound, val) {
+      const num = Number(val);
+      if (bound === 'from') {
+        simYearFrom = num;
+        if (simYearTo !== null && simYearFrom > simYearTo) simYearTo = simYearFrom;
+      } else {
+        simYearTo = num;
+        if (simYearFrom !== null && simYearTo < simYearFrom) simYearFrom = simYearTo;
+      }
+      renderSimilarPlayersInSingle();
+      renderSimilarPlayersInCompare();
+    }
+
+    function buildSimYearRangeHtml() {
+      const yrsAsc = [...(db.years || [2026])].map(Number).sort((a, b) => a - b);
+      const fromOpts = yrsAsc.map(y => `<option value="${y}" ${y === simYearFrom ? 'selected' : ''}>${y}</option>`).join('');
+      const toOpts = yrsAsc.map(y => `<option value="${y}" ${y === simYearTo ? 'selected' : ''}>${y}</option>`).join('');
+      return `
+        <span class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-slate-600 shadow-2xs" title="設定比對池年份區間（起訖同年即為單一年份比對）">
+          <span class="text-slate-400 font-semibold">範圍</span>
+          <select onchange="onSimYearRangeChange('from', this.value)" class="bg-transparent text-slate-800 font-bold focus:outline-none cursor-pointer">
+            ${fromOpts}
+          </select>
+          <span class="text-slate-400">–</span>
+          <select onchange="onSimYearRangeChange('to', this.value)" class="bg-transparent text-slate-800 font-bold focus:outline-none cursor-pointer">
+            ${toOpts}
+          </select>
+        </span>
+      `;
+    }
+
+    function extractSimilarityVector(modeData, role) {
+      const cfgKey = role === 'batter'
+        ? (simBatterMode === 'batting' ? 'batter_batting' : 'batter_full')
+        : 'pitcher';
+      const cfg = SIM_FEATURES[cfgKey];
+      if (!cfg || !modeData) return {};
+      const vec = {};
+      const savantMap = new Map((modeData.savant_pr || []).map(item => [item.label, item.pr]));
+      for (const [lbl, w] of cfg.savant) {
+        const pr = savantMap.get(lbl);
+        if (pr !== null && pr !== undefined && !isNaN(Number(pr))) {
+          vec[`s:${lbl}`] = { v: Number(pr), w };
+        }
+      }
+      const fgPr = modeData.fangraphs_pr || {};
+      for (const [k, w] of cfg.fg) {
+        const pr = fgPr[k];
+        if (pr !== null && pr !== undefined && !isNaN(Number(pr))) {
+          vec[`f:${k}`] = { v: Number(pr), w };
+        }
+      }
+      if (cfg.sim && modeData.sim_pr) {
+        for (const [k, w] of cfg.sim) {
+          const pr = modeData.sim_pr[k];
+          if (pr !== null && pr !== undefined && !isNaN(Number(pr))) {
+            vec[`x:${k}`] = { v: Number(pr), w };
+          }
+        }
+      }
+      if (cfg.mix && modeData.pitch_mix) {
+        for (const [g, w] of cfg.mix) {
+          const pct = modeData.pitch_mix[g];
+          if (pct !== null && pct !== undefined && !isNaN(Number(pct))) {
+            vec[`m:${g}`] = { v: Number(pct), w };
+          }
+        }
+      }
+      return vec;
+    }
+
+    function canComputeSimilarity(targetId, targetYear, role) {
+      const targetSeason = db.players[String(targetId)]?.seasons?.[String(targetYear)];
+      if (!targetSeason) return false;
+      const targetMode = getModeData(targetSeason, role);
+      const targetVec = extractSimilarityVector(targetMode, role);
+      return Object.keys(targetVec).filter(k => k.startsWith('s:')).length >= 4;
+    }
+
+    function findSimilarPlayers(targetId, targetYear, role, topN = 5) {
+      const targetPlayer = db.players[String(targetId)];
+      const targetSeason = targetPlayer?.seasons?.[String(targetYear)];
+      if (!targetSeason) return [];
+
+      const targetMode = getModeData(targetSeason, role);
+      const targetVec = extractSimilarityVector(targetMode, role);
+      const targetKeys = Object.keys(targetVec);
+      const targetSavantCount = targetKeys.filter(k => k.startsWith('s:')).length;
+      if (targetSavantCount < 4) return [];
+
+      const targetSubRole = role === 'pitcher' ? (targetSeason.pitching?.sub_role || null) : null;
+      const minCandIp = targetSubRole === 'SP' ? 50 : 25;
+
+      // 拉高重疊門檻至 7 項，過濾樣本殘缺的候選人；年代缺項則代入固定中性懲罰而非免費跳過
+      const minSavantOverlap = Math.min(7, targetSavantCount);
+      const MISSING_PENALTY_D = 18;
+      const candidates = [];
+
+      for (const p of Object.values(db.players)) {
+        if (String(p.mlbam_id) === String(targetId)) continue;
+        if (!p.seasons) continue;
+
+        for (const [yr, sObj] of Object.entries(p.seasons)) {
+          const yrNum = Number(yr);
+          if (simYearFrom !== null && yrNum < simYearFrom) continue;
+          if (simYearTo !== null && yrNum > simYearTo) continue;
+
+          if (!playerHasRoleInYear(p, yr, role)) continue;
+          if (role === 'pitcher' && targetSubRole) {
+            const candSub = sObj.pitching?.sub_role;
+            const candIp = Number(sObj.pitching?.ip || 0);
+            if (!candSub || candSub !== targetSubRole || candIp < minCandIp) continue;
+          }
+
+          const cMode = getModeData(sObj, role);
+          const cVec = extractSimilarityVector(cMode, role);
+
+          let sumSq = 0;
+          let sumW = 0;
+          let savantOverlap = 0;
+          for (const k of targetKeys) {
+            const w = targetVec[k].w;
+            if (cVec[k] !== undefined) {
+              const d = targetVec[k].v - cVec[k].v;
+              sumSq += w * d * d;
+              sumW += w;
+              if (k.startsWith('s:')) savantOverlap++;
+            } else {
+              sumSq += w * MISSING_PENALTY_D * MISSING_PENALTY_D;
+              sumW += w;
+            }
+          }
+          if (savantOverlap < minSavantOverlap || sumW <= 0) continue;
+
+          const rmsd = Math.sqrt(sumSq / sumW);
+          const similarity = Math.max(1, Math.min(99, Math.round(100 - rmsd * 1.6)));
+          candidates.push({
+            mlbam_id: String(p.mlbam_id),
+            name: p.name,
+            year: String(yr),
+            rmsd,
+            similarity,
+          });
+        }
+      }
+
+      candidates.sort((a, b) => a.rmsd - b.rmsd);
+      return candidates.slice(0, topN);
+    }
+
+    function quickCompareWith(p1Id, p1Yr, p2Id, p2Yr, role) {
+      compareRole = role;
+      cmpState[1].id = String(p1Id);
+      cmpState[1].year = String(p1Yr);
+      cmpState[2].id = String(p2Id);
+      cmpState[2].year = String(p2Yr);
+
+      document.getElementById('cmpYear1').value = String(p1Yr);
+      document.getElementById('cmpYear2').value = String(p2Yr);
+
+      appView = 'compare';
+      document.getElementById('singleViewSection').classList.add('hidden');
+      document.getElementById('singleHeaderControls').classList.add('hidden');
+      document.getElementById('compareViewSection').classList.remove('hidden');
+      const compareCtrl = document.getElementById('compareHeaderControls');
+      compareCtrl.classList.remove('hidden');
+      compareCtrl.classList.add('flex');
+      document.getElementById('navBtnCompare').className = "px-3 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition";
+      document.getElementById('navBtnSingle').className = "px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition";
+
+      syncCompareRoleButtons();
+      refreshCompareAll();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function applySimilarAsPlayer2(mlbamId, yr) {
+      cmpState[2].id = String(mlbamId);
+      cmpState[2].year = String(yr);
+      document.getElementById('cmpYear2').value = String(yr);
+      refreshCompareSlot(2);
+    }
+
+    function renderSimilarPlayersInSingle() {
+      const bar = document.getElementById('similarPlayersBar');
+      if (!currentPlayer || !canComputeSimilarity(currentPlayer.mlbam_id, currentYear, activeRoleMode)) {
+        bar.classList.add('hidden');
+        return;
+      }
+
+      const sims = findSimilarPlayers(currentPlayer.mlbam_id, currentYear, activeRoleMode, 5);
+
+      let roleText = 'Batters';
+      if (activeRoleMode === 'pitcher') {
+        const sub = currentPlayer.seasons?.[String(currentYear)]?.pitching?.sub_role;
+        roleText = sub ? sub : 'Pitchers';
+      }
+
+      const pills = sims.length > 0
+        ? sims.map(s => `
+          <div class="inline-flex items-center bg-white border border-slate-200 hover:border-blue-400 rounded-full pl-1 pr-1.5 py-0.5 shadow-2xs transition">
+            <button onclick="selectPlayer('${s.mlbam_id}', '${s.year}')" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-blue-700 pr-1.5 cursor-pointer" title="查看 ${s.year} ${s.name}">
+              <img src="https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_64,q_auto:best/v1/people/${s.mlbam_id}/headshot/67/current"
+                   alt="${s.name}" class="w-6 h-6 rounded-full object-cover bg-slate-100 border border-slate-200" />
+              <span><span class="text-slate-400 font-semibold">${s.year}</span> ${s.name}</span>
+              <span class="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">${s.similarity}%</span>
+            </button>
+            <button onclick="quickCompareWith('${currentPlayer.mlbam_id}', '${currentYear}', '${s.mlbam_id}', '${s.year}', '${activeRoleMode}')"
+                    class="text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-500 transition cursor-pointer"
+                    title="一鍵與 ${s.name} (${s.year}) 進行對決比對">
+              ⚔️
+            </button>
+          </div>
+        `).join('')
+        : `<span class="text-xs text-slate-400">此年份區間內無符合門檻之相似球員</span>`;
+
+      bar.innerHTML = `
+        <span class="text-xs font-extrabold text-slate-500 whitespace-nowrap">
+          Similar ${roleText} (${currentYear}):
+        </span>
+        ${activeRoleMode === 'batter' ? buildSimBatterModeHtml() : ''}
+        ${buildSimYearRangeHtml()}
+        ${pills}
+      `;
+      bar.classList.remove('hidden');
+    }
+
+    function renderSimilarPlayersInCompare() {
+      const bar = document.getElementById('cmpSimilarBar');
+      const p1 = db.players[cmpState[1].id];
+      if (!p1 || !canComputeSimilarity(cmpState[1].id, cmpState[1].year, compareRole)) {
+        bar.classList.add('hidden');
+        return;
+      }
+
+      const sims = findSimilarPlayers(cmpState[1].id, cmpState[1].year, compareRole, 5);
+
+      const subTag = compareRole === 'pitcher'
+        ? (p1.seasons?.[String(cmpState[1].year)]?.pitching?.sub_role || '')
+        : '';
+      const subSuffix = subTag ? ` [${subTag}]` : '';
+
+      const pills = sims.length > 0
+        ? sims.map(s => {
+          const isSelected = String(cmpState[2].id) === s.mlbam_id && String(cmpState[2].year) === s.year;
+          const activeCls = isSelected
+            ? 'bg-rose-50 border-rose-400 text-rose-800'
+            : 'bg-slate-50 hover:bg-rose-50 border-slate-200 hover:border-rose-300 text-slate-700';
+          return `
+            <button onclick="applySimilarAsPlayer2('${s.mlbam_id}', '${s.year}')"
+                    class="inline-flex items-center gap-1.5 border rounded-full pl-1 pr-2.5 py-0.5 text-xs font-bold transition cursor-pointer ${activeCls}">
+              <img src="https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_64,q_auto:best/v1/people/${s.mlbam_id}/headshot/67/current"
+                   alt="${s.name}" class="w-5 h-5 rounded-full object-cover bg-white border border-slate-200" />
+              <span><span class="text-slate-400 font-semibold">${s.year}</span> ${s.name}</span>
+              <span class="text-[10px] font-extrabold text-emerald-700">${s.similarity}%</span>
+            </button>
+          `;
+        }).join('')
+        : `<span class="text-xs text-slate-400">此年份區間內無符合門檻之相似對手</span>`;
+
+      bar.innerHTML = `
+        <span class="text-xs font-extrabold text-slate-600 whitespace-nowrap">
+          ⚡ 與 ${p1.name} (${cmpState[1].year}${subSuffix}) 最相似的推薦對手：
+        </span>
+        ${compareRole === 'batter' ? buildSimBatterModeHtml() : ''}
+        ${buildSimYearRangeHtml()}
+        ${pills}
+      `;
+      bar.classList.remove('hidden');
+    }
 
     function toTeamAbbr(teamObj) {
       if (!teamObj) return null;
@@ -551,7 +1018,7 @@
     const yearSelect = document.getElementById('yearSelect');
 
     function getModeData(seasonObj, mode) {
-      if (!seasonObj) return { savant_pr: [], fangraphs: {}, fangraphs_pr: {} };
+      if (!seasonObj) return { savant_pr: [], fangraphs: {}, fangraphs_pr: {}, sim_pr: {}, sim_raw: {} };
       if (mode === 'pitcher' && seasonObj.pitching) {
         const pitData = seasonObj.pitching;
         const batList = seasonObj.batting?.savant_pr || [];
@@ -582,7 +1049,9 @@
       return {
         savant_pr: seasonObj.savant_pr || [],
         fangraphs: seasonObj.fangraphs || {},
-        fangraphs_pr: seasonObj.fangraphs_pr || {}
+        fangraphs_pr: seasonObj.fangraphs_pr || {},
+        sim_pr: seasonObj.sim_pr || {},
+        sim_raw: seasonObj.sim_raw || {},
       };
     }
 
@@ -754,6 +1223,7 @@
         const res = await fetch('./mlb_data.json');
         if (!res.ok) throw new Error('尚未產生 mlb_data.json');
         db = await res.json();
+        styleAvgCache = {};
 
         if (db.years && db.years.length > 0) {
           const yearOpts = db.years.map(y => `<option value="${y}">${y} 球季</option>`).join('');
@@ -765,6 +1235,10 @@
           yearSelect.value = currentYear;
           cmpState[1].year = currentYear;
           cmpState[2].year = currentYear;
+
+          const yrsAsc = [...db.years].map(Number).sort((a, b) => a - b);
+          simYearFrom = yrsAsc[0];
+          simYearTo = yrsAsc[yrsAsc.length - 1];
         }
       } catch (err) {
         const banner = document.getElementById('statusBanner');
@@ -884,7 +1358,7 @@
         }
         const pAfter = db.players[cmpState[slot].id];
         if (pAfter && !playerHasRoleInYear(pAfter, cmpState[slot].year, compareRole)) {
-          const validYr = (db.years || [2026, 2025, 2024]).find(y => playerHasRoleInYear(pAfter, String(y), compareRole));
+          const validYr = (db.years || [2026]).find(y => playerHasRoleInYear(pAfter, String(y), compareRole));
           if (validYr) {
             cmpState[slot].year = String(validYr);
             document.getElementById(`cmpYear${slot}`).value = String(validYr);
@@ -937,7 +1411,7 @@
 
       const p = db.players[mlbamId];
       if (p && !playerHasRoleInYear(p, cmpState[slot].year, compareRole)) {
-        const validYr = (db.years || [2026, 2025, 2024]).find(y => playerHasRoleInYear(p, String(y), compareRole));
+        const validYr = (db.years || [2026]).find(y => playerHasRoleInYear(p, String(y), compareRole));
         if (validYr) {
           cmpState[slot].year = String(validYr);
           document.getElementById(`cmpYear${slot}`).value = String(validYr);
@@ -966,6 +1440,7 @@
       document.getElementById(`cmpTableHead${slot}`).textContent = `${p.name} (${st.year})`;
 
       st.officialBars = null;
+      renderSimilarPlayersInCompare();
       renderComparisonTables();
 
       const reqId = p.mlbam_id;
@@ -1076,6 +1551,53 @@
       `;
     }
 
+    function buildNeutralStyleCellHtml(metric, valStr, pr, lgAvg, side) {
+      const tag = getStyleTag(metric, pr, valStr);
+      if ((!valStr || valStr === '-') && (pr === null || pr === undefined)) {
+        return `<div class="${side === 'left' ? 'text-left' : 'text-right'} text-xs text-slate-300 font-mono">-</div>`;
+      }
+      const pct = Math.max(2, Math.min(98, Number(pr ?? 50)));
+      const tagHtml = tag
+        ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${tag.cls}">${tag.text} · PR ${pr}</span>`
+        : '';
+      const diffText = formatStyleDiffText(metric, valStr, lgAvg);
+
+      if (side === 'left') {
+        return `
+          <div class="flex items-center gap-2.5 w-full">
+            <div class="w-24 text-left shrink-0">
+              <div class="font-mono text-xs sm:text-sm font-bold text-slate-700 leading-tight">${valStr || '-'}</div>
+              ${diffText ? `<div class="text-[10px] text-slate-400 font-medium leading-tight">${diffText}</div>` : ''}
+            </div>
+            <div class="flex-1 flex items-center justify-end gap-2">
+              ${tagHtml}
+              <div class="flex-1 max-w-[140px] relative h-2.5 rounded-full bg-slate-200">
+                <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400"></span>
+                <div class="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-600 border-2 border-white shadow-xs transform translate-x-1/2"
+                     style="right: ${pct}%;" title="PR ${pr ?? '-'}"></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      return `
+        <div class="flex items-center gap-2.5 w-full">
+          <div class="flex-1 flex items-center justify-start gap-2">
+            <div class="flex-1 max-w-[140px] relative h-2.5 rounded-full bg-slate-200">
+              <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400"></span>
+              <div class="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-600 border-2 border-white shadow-xs transform -translate-x-1/2"
+                   style="left: ${pct}%;" title="PR ${pr ?? '-'}"></div>
+            </div>
+            ${tagHtml}
+          </div>
+          <div class="w-24 text-right shrink-0">
+            <div class="font-mono text-xs sm:text-sm font-bold text-slate-700 leading-tight">${valStr || '-'}</div>
+            ${diffText ? `<div class="text-[10px] text-slate-400 font-medium leading-tight">${diffText}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
     function decideWinner(val1, pr1, val2, pr2, lowerIsBetter = false) {
       const n1 = parseFloat(String(val1).replace('%', ''));
       const n2 = parseFloat(String(val2).replace('%', ''));
@@ -1154,6 +1676,28 @@
         `;
       }).join('');
       document.getElementById('cmpSavantRows').innerHTML = savantRowsHtml;
+
+      const styleKeys = compareRole === 'batter'
+        ? ['GB%', 'Pull%', 'Z-Swing%']
+        : ['Zone%', 'Arm Angle'];
+
+      const lgAvg1 = getLeagueStyleAvg(cmpState[1].year, compareRole);
+      const lgAvg2 = getLeagueStyleAvg(cmpState[2].year, compareRole);
+
+      const styleRowsHtml = styleKeys.map(k => {
+        const v1 = m1.sim_raw?.[k] ?? '-';
+        const v2 = m2.sim_raw?.[k] ?? '-';
+        const pr1 = m1.sim_pr?.[k] ?? null;
+        const pr2 = m2.sim_pr?.[k] ?? null;
+        return `
+          <div class="grid grid-cols-12 items-center py-2.5 gap-2 hover:bg-slate-50/80 transition">
+            <div class="col-span-5">${buildNeutralStyleCellHtml(k, v1, pr1, lgAvg1[k], 'left')}</div>
+            <div class="col-span-2 text-center font-bold text-[11px] sm:text-xs text-slate-600 bg-slate-100 py-1 px-1.5 rounded border border-slate-200/80 truncate" title="${k}">${k}</div>
+            <div class="col-span-5">${buildNeutralStyleCellHtml(k, v2, pr2, lgAvg2[k], 'right')}</div>
+          </div>
+        `;
+      }).join('');
+      document.getElementById('cmpStyleRows').innerHTML = styleRowsHtml;
     }
 
     // ==================== 單人儀表板邏輯 ====================
@@ -1266,7 +1810,7 @@
       if (!p.seasons[yr]) p.seasons[yr] = { role };
       const sObj = p.seasons[yr];
       const subKey = role === 'pitcher' ? 'pitching' : 'batting';
-      if (!sObj[subKey]) sObj[subKey] = { savant_pr: [], fangraphs: {}, fangraphs_pr: {} };
+      if (!sObj[subKey]) sObj[subKey] = { savant_pr: [], fangraphs: {}, fangraphs_pr: {}, sim_pr: {}, sim_raw: {} };
       if (!sObj[subKey].fangraphs) sObj[subKey].fangraphs = {};
 
       const targetFg = sObj[subKey].fangraphs;
@@ -1286,7 +1830,7 @@
       }
     }
 
-    async function selectPlayer(mlbamId) {
+    async function selectPlayer(mlbamId, targetYear = null) {
       searchResults.classList.add('hidden');
       const p = db.players[mlbamId];
       if (!p) return;
@@ -1294,6 +1838,17 @@
       pitcherSubType = 'SP';
       basePosAbbr = '-';
       selectedSeasonTeam = 'ALL';
+
+      if (targetYear && p.seasons?.[String(targetYear)]) {
+        currentYear = String(targetYear);
+        yearSelect.value = currentYear;
+      } else if (!p.seasons?.[currentYear] && p.seasons) {
+        const availYrs = Object.keys(p.seasons).sort((a, b) => Number(b) - Number(a));
+        if (availYrs.length > 0) {
+          currentYear = availYrs[0];
+          yearSelect.value = currentYear;
+        }
+      }
 
       const sObj = p.seasons?.[currentYear];
       activeRoleMode = sObj?.role || p.role || 'batter';
@@ -1389,6 +1944,46 @@
       }
     }
 
+    function renderStyleProfile(simRaw, simPr, role) {
+      const sec = document.getElementById('styleProfileSection');
+      const grid = document.getElementById('styleProfileGrid');
+      const keys = role === 'batter' ? ['GB%', 'Pull%', 'Z-Swing%'] : ['Zone%', 'Arm Angle'];
+
+      const validItems = keys.filter(k => (simRaw && simRaw[k] !== undefined) || (simPr && simPr[k] !== undefined));
+      if (validItems.length === 0) {
+        sec.classList.add('hidden');
+        return;
+      }
+
+      const lgAvgMap = getLeagueStyleAvg(currentYear, role);
+
+      grid.className = role === 'batter'
+        ? 'grid grid-cols-3 gap-2.5 text-center'
+        : 'grid grid-cols-2 gap-2.5 text-center';
+
+      grid.innerHTML = keys.map(k => {
+        const val = simRaw?.[k] ?? '-';
+        const pr = simPr?.[k];
+        const tag = getStyleTag(k, pr, val);
+        const diffText = formatStyleDiffText(k, val, lgAvgMap[k]);
+        return `
+          <div class="bg-slate-50/90 rounded-lg p-2.5 border border-slate-200/80 flex flex-col items-center justify-between gap-1">
+            <div class="text-xs text-slate-500 font-bold">${k}</div>
+            <div class="text-lg font-black text-slate-800 leading-tight">${val}</div>
+            ${tag
+              ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded border ${tag.cls}">${tag.text} · PR ${pr}</span>`
+              : `<span class="text-[10px] text-slate-400">-</span>`
+            }
+            ${diffText
+              ? `<div class="text-[10px] text-slate-400 font-medium">${diffText}</div>`
+              : ''
+            }
+          </div>
+        `;
+      }).join('');
+      sec.classList.remove('hidden');
+    }
+
     async function renderCurrentPlayerForYear() {
       const p = currentPlayer;
       if (!p) return;
@@ -1397,8 +1992,8 @@
       document.getElementById('savantYearBadge').textContent = `${currentYear} Season`;
       document.getElementById('fgYearTag').textContent = `${currentYear} Season`;
 
-      // 切換球季時同步更新合約標籤上的當年度薪資
       renderContractBadges(p.roster_info || null);
+      renderSimilarPlayersInSingle();
 
       const seasonObj = p.seasons?.[currentYear];
 
@@ -1449,6 +2044,7 @@
 
       renderSavantBars(modeData.savant_pr, activeRoleMode);
       renderFgMetrics(fg, fgPr);
+      renderStyleProfile(modeData.sim_raw, modeData.sim_pr, activeRoleMode);
 
       loadAndRenderScouting(p, currentYear, activeRoleMode);
 

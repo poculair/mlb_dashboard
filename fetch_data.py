@@ -1,5 +1,6 @@
 import io
 import json
+import math
 import os
 from curl_cffi import requests
 import pandas as pd
@@ -7,8 +8,9 @@ import pybaseball as pyb
 
 pyb.cache.enable()
 
-YEARS = [2024, 2025, 2026]
+YEARS = list(range(2015, 2027))
 DEFAULT_YEAR = 2026
+CACHE_DIR = "cache"
 
 HEADERS = {
     "Accept": "application/json, text/plain, */*",
@@ -17,8 +19,35 @@ HEADERS = {
 }
 
 
+def clean_for_json(obj):
+    """遞迴清除 NaN / Inf 並轉為原生 Python 型別，確保快取與輸出 JSON 合法"""
+    if isinstance(obj, dict):
+        return {str(k): clean_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [clean_for_json(v) for v in obj]
+    if isinstance(obj, float):
+        return None if (math.isnan(obj) or math.isinf(obj)) else obj
+    if hasattr(obj, "item"):
+        val = obj.item()
+        if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+            return None
+        return val
+    return obj
+
+
+def restore_int_keys(yd: dict) -> dict:
+    """從快取讀取後，將各子字典的 player_id 鍵值轉回 int"""
+    restored = {}
+    for k, sub in yd.items():
+        if isinstance(sub, dict):
+            restored[k] = {int(pid): val for pid, val in sub.items()}
+        else:
+            restored[k] = sub
+    return restored
+
+
 def fetch_fangraphs_leaders(year: int, stats_type: str = "bat"):
-    """透過 FanGraphs Leaderboard API 取得真實 fWAR、BsR/Def 與進階指標"""
+    """透過 FanGraphs Leaderboard API 取得真實 fWAR、BsR/Def、進階指標與風格特徵 (GB%/Pull%/Z-Swing%/Zone%)"""
     url = "https://www.fangraphs.com/api/leaders/major-league/data"
     base_params = {
         "age": "", "pos": "all", "stats": stats_type, "lg": "all", "qual": "1",
@@ -41,7 +70,13 @@ def fetch_fangraphs_leaders(year: int, stats_type: str = "bat"):
     except Exception as e:
         print(f"  [警告] {year} FanGraphs ({stats_type}) API 抓取失敗: {e}")
 
-    extra_types = ["6"] if stats_type == "bat" else ["0", "36"]
+    # 打者補抓: 6=Value(BsR/Def), 2=Batted Ball(GB%/Pull%), 5=Plate Discipline(Z-Swing%)
+    # 投手補抓: 0=Standard(HR/9, G, GS, IP), 36=Stuff+, 5=Plate Discipline(Zone% 備援)
+    extra_types = ["6", "2", "5"] if stats_type == "bat" else ["0", "36", "5"]
+    extra_keys = [
+        "BsR", "BaseRunning", "Def", "Fielding", "ERA-", "Stuff+", "sp_stuff", "HR/9",
+        "GB%", "Pull%", "Z-Swing%", "Zone%", "G", "GS", "IP",
+    ]
     for t in extra_types:
         try:
             ex_res = requests.get(url, params={**base_params, "type": t}, headers=HEADERS, impersonate="chrome", timeout=20)
@@ -49,7 +84,7 @@ def fetch_fangraphs_leaders(year: int, stats_type: str = "bat"):
                 for row in ex_res.json().get("data", []):
                     pid = row.get("playerid")
                     if pid and int(pid) in leaders_map:
-                        for k in ["BsR", "BaseRunning", "Def", "Fielding", "ERA-", "Stuff+", "sp_stuff", "HR/9"]:
+                        for k in extra_keys:
                             if row.get(k) is not None:
                                 leaders_map[int(pid)][k] = row[k]
                         if row.get("sp_stuff") is not None and leaders_map[int(pid)].get("Stuff+") is None:
@@ -96,11 +131,14 @@ def compute_league_percentiles(fg_map: dict, stats_type: str = "bat") -> dict:
     df = pd.DataFrame.from_dict(fg_map, orient="index")
     if stats_type == "bat" and "PA" in df.columns:
         pool = df[pd.to_numeric(df["PA"], errors="coerce") >= 50].copy()
-        higher_better = ["TOTAL_WAR", "OPS+", "wRC+", "wOBA", "ISO", "BABIP", "REAL_BSR", "REAL_DEF"]
+        higher_better = [
+            "TOTAL_WAR", "OPS+", "wRC+", "wOBA", "ISO", "BABIP", "REAL_BSR", "REAL_DEF",
+            "GB%", "Pull%", "Z-Swing%",
+        ]
         lower_better = []
     else:
         pool = df[pd.to_numeric(df["IP"], errors="coerce") >= 15].copy()
-        higher_better = ["TOTAL_WAR", "ERA+", "LOB%", "Stuff+"]
+        higher_better = ["TOTAL_WAR", "ERA+", "LOB%", "Stuff+", "Zone%"]
         lower_better = ["FIP", "xFIP", "SIERA", "ERA-", "HR/9"]
 
     if pool.empty:
@@ -135,13 +173,13 @@ def compute_league_percentiles(fg_map: dict, stats_type: str = "bat") -> dict:
 
 
 def fetch_savant_raw_metrics(year: int, player_type: str = "batter"):
-    """抓取 Savant Custom Leaderboard、Bat Tracking、OAA 守備、Arm Strength 與投手 Pitch Run Value"""
+    """抓取 Savant Custom Leaderboard、Bat Tracking、OAA 守備、Arm Strength、投手 Pitch Run Value、球種配比與 Arm Angle"""
     merged_map = {}
     url = "https://baseballsavant.mlb.com/leaderboard/custom"
     if player_type == "batter":
         selections = "xwoba,xba,xslg,exit_velocity_avg,barrel_batted_rate,hard_hit_percent,sweet_spot_percent,avg_swing_speed,squared_up_swing_rate,oz_swing_percent,whiff_percent,k_percent,bb_percent"
     else:
-        selections = "xera,xwoba,xba,exit_velocity_avg,barrel_batted_rate,hard_hit_percent,oz_swing_percent,whiff_percent,k_percent,bb_percent,ff_avg_speed,ff_avg_spin,groundballs_percent,release_extension"
+        selections = "xera,xwoba,xba,exit_velocity_avg,barrel_batted_rate,hard_hit_percent,oz_swing_percent,whiff_percent,k_percent,bb_percent,ff_avg_speed,ff_avg_spin,groundballs_percent,release_extension,in_zone_percent"
 
     params = {
         "year": year, "type": player_type, "filter": "", "min": "1",
@@ -153,73 +191,76 @@ def fetch_savant_raw_metrics(year: int, player_type: str = "batter"):
         res.raise_for_status()
         df = pd.read_csv(io.StringIO(res.text))
         if "player_id" in df.columns:
-            merged_map = df.set_index("player_id").to_dict("index")
+            merged_map = df.drop_duplicates(subset=["player_id"]).set_index("player_id").to_dict("index")
     except Exception as e:
         print(f"  [警告] {year} Savant 基礎數值 ({player_type}) 抓取失敗: {e}")
 
     if player_type == "batter":
-        try:
-            bt_res = requests.get(
-                "https://baseballsavant.mlb.com/leaderboard/bat-tracking",
-                params={
-                    "dateStart": f"{year}-01-01", "dateEnd": f"{year}-12-31", "gameType": "R",
-                    "minSwings": "1", "minGroupSwings": "1", "seasonStart": year, "seasonEnd": year,
-                    "type": "batter", "csv": "true",
-                },
-                impersonate="chrome", timeout=20,
-            )
-            if bt_res.status_code == 200:
-                bt_df = pd.read_csv(io.StringIO(bt_res.text))
-                id_col = "id" if "id" in bt_df.columns else ("player_id" if "player_id" in bt_df.columns else None)
-                if id_col:
-                    for _, r in bt_df.iterrows():
-                        pid = int(r[id_col])
-                        merged_map.setdefault(pid, {})
-                        if pd.notna(r.get("avg_bat_speed")):
-                            merged_map[pid]["avg_swing_speed"] = r["avg_bat_speed"]
-                        if pd.notna(r.get("squared_up_per_swing")):
-                            merged_map[pid]["squared_up_swing_rate"] = r["squared_up_per_swing"] * 100
-                        elif pd.notna(r.get("squared_up_per_bat_contact")):
-                            merged_map[pid]["squared_up_swing_rate"] = r["squared_up_per_bat_contact"] * 100
-        except Exception:
-            pass
-
-        try:
-            oaa_res = requests.get(
-                "https://baseballsavant.mlb.com/leaderboard/outs_above_average",
-                params={"type": "Fielder", "startYear": year, "endYear": year, "split": "no", "team": "", "range": "year", "min": "1", "pos": "", "roles": "", "viz": "hide", "csv": "true"},
-                impersonate="chrome", timeout=20,
-            )
-            if oaa_res.status_code == 200:
-                oaa_df = pd.read_csv(io.StringIO(oaa_res.text))
-                id_col = "player_id" if "player_id" in oaa_df.columns else ("id" if "id" in oaa_df.columns else None)
-                if id_col and "outs_above_average" in oaa_df.columns:
-                    for _, r in oaa_df.iterrows():
-                        if pd.notna(r.get(id_col)) and pd.notna(r.get("outs_above_average")):
+        if year >= 2023:
+            try:
+                bt_res = requests.get(
+                    "https://baseballsavant.mlb.com/leaderboard/bat-tracking",
+                    params={
+                        "dateStart": f"{year}-01-01", "dateEnd": f"{year}-12-31", "gameType": "R",
+                        "minSwings": "1", "minGroupSwings": "1", "seasonStart": year, "seasonEnd": year,
+                        "type": "batter", "csv": "true",
+                    },
+                    impersonate="chrome", timeout=20,
+                )
+                if bt_res.status_code == 200:
+                    bt_df = pd.read_csv(io.StringIO(bt_res.text))
+                    id_col = "id" if "id" in bt_df.columns else ("player_id" if "player_id" in bt_df.columns else None)
+                    if id_col:
+                        for _, r in bt_df.iterrows():
                             pid = int(r[id_col])
                             merged_map.setdefault(pid, {})
-                            merged_map[pid]["outs_above_average"] = r["outs_above_average"]
-        except Exception:
-            pass
+                            if pd.notna(r.get("avg_bat_speed")):
+                                merged_map[pid]["avg_swing_speed"] = r["avg_bat_speed"]
+                            if pd.notna(r.get("squared_up_per_swing")):
+                                merged_map[pid]["squared_up_swing_rate"] = r["squared_up_per_swing"] * 100
+                            elif pd.notna(r.get("squared_up_per_bat_contact")):
+                                merged_map[pid]["squared_up_swing_rate"] = r["squared_up_per_bat_contact"] * 100
+            except Exception:
+                pass
 
-        try:
-            arm_res = requests.get(
-                "https://baseballsavant.mlb.com/leaderboard/arm-strength",
-                params={"type": "player", "year": year, "minThrows": "1", "pos": "", "team": "", "csv": "true"},
-                impersonate="chrome", timeout=20,
-            )
-            if arm_res.status_code == 200:
-                arm_df = pd.read_csv(io.StringIO(arm_res.text))
-                id_col = "player_id" if "player_id" in arm_df.columns else ("fielder_id" if "fielder_id" in arm_df.columns else None)
-                val_col = "arm_overall" if "arm_overall" in arm_df.columns else ("max_arm_strength" if "max_arm_strength" in arm_df.columns else None)
-                if id_col and val_col:
-                    for _, r in arm_df.iterrows():
-                        if pd.notna(r.get(id_col)) and pd.notna(r.get(val_col)):
-                            pid = int(r[id_col])
-                            merged_map.setdefault(pid, {})
-                            merged_map[pid]["arm_overall"] = r[val_col]
-        except Exception:
-            pass
+        if year >= 2016:
+            try:
+                oaa_res = requests.get(
+                    "https://baseballsavant.mlb.com/leaderboard/outs_above_average",
+                    params={"type": "Fielder", "startYear": year, "endYear": year, "split": "no", "team": "", "range": "year", "min": "1", "pos": "", "roles": "", "viz": "hide", "csv": "true"},
+                    impersonate="chrome", timeout=20,
+                )
+                if oaa_res.status_code == 200:
+                    oaa_df = pd.read_csv(io.StringIO(oaa_res.text))
+                    id_col = "player_id" if "player_id" in oaa_df.columns else ("id" if "id" in oaa_df.columns else None)
+                    if id_col and "outs_above_average" in oaa_df.columns:
+                        for _, r in oaa_df.iterrows():
+                            if pd.notna(r.get(id_col)) and pd.notna(r.get("outs_above_average")):
+                                pid = int(r[id_col])
+                                merged_map.setdefault(pid, {})
+                                merged_map[pid]["outs_above_average"] = r["outs_above_average"]
+            except Exception:
+                pass
+
+        if year >= 2020:
+            try:
+                arm_res = requests.get(
+                    "https://baseballsavant.mlb.com/leaderboard/arm-strength",
+                    params={"type": "player", "year": year, "minThrows": "1", "pos": "", "team": "", "csv": "true"},
+                    impersonate="chrome", timeout=20,
+                )
+                if arm_res.status_code == 200:
+                    arm_df = pd.read_csv(io.StringIO(arm_res.text))
+                    id_col = "player_id" if "player_id" in arm_df.columns else ("fielder_id" if "fielder_id" in arm_df.columns else None)
+                    val_col = "arm_overall" if "arm_overall" in arm_df.columns else ("max_arm_strength" if "max_arm_strength" in arm_df.columns else None)
+                    if id_col and val_col:
+                        for _, r in arm_df.iterrows():
+                            if pd.notna(r.get(id_col)) and pd.notna(r.get(val_col)):
+                                pid = int(r[id_col])
+                                merged_map.setdefault(pid, {})
+                                merged_map[pid]["arm_overall"] = r[val_col]
+            except Exception:
+                pass
 
     else:
         try:
@@ -235,6 +276,12 @@ def fetch_savant_raw_metrics(year: int, player_type: str = "batter"):
                     FASTBALLS = {"FF", "SI", "FC"}
                     BREAKINGS = {"SL", "CU", "KC", "ST", "SV"}
                     OFFSPEEDS = {"CH", "FS", "FO", "SC"}
+                    MIX_GROUP = {
+                        "FF": "FF", "SI": "SI", "FC": "FC",
+                        "SL": "SL", "ST": "SL", "SV": "SL",
+                        "CU": "CU", "KC": "CU", "CS": "CU",
+                        "CH": "CH", "FS": "CH", "FO": "CH", "SC": "CH",
+                    }
                     for _, r in rv_df.iterrows():
                         if pd.isna(r.get(id_col)) or pd.isna(r.get("run_value")):
                             continue
@@ -250,6 +297,11 @@ def fetch_savant_raw_metrics(year: int, player_type: str = "batter"):
                         merged_map.setdefault(pid, {})
                         merged_map[pid]["total_pitches"] = merged_map[pid].get("total_pitches", 0.0) + pitches
 
+                        grp = MIX_GROUP.get(ptype)
+                        if grp and pitches > 0:
+                            mix_cnt = merged_map[pid].setdefault("_mix_cnt", {})
+                            mix_cnt[grp] = mix_cnt.get(grp, 0.0) + pitches
+
                         if ptype in FASTBALLS:
                             merged_map[pid]["fastball_rv"] = merged_map[pid].get("fastball_rv", 0.0) + exact_rv
                             merged_map[pid]["fb_pitches"] = merged_map[pid].get("fb_pitches", 0.0) + pitches
@@ -261,11 +313,18 @@ def fetch_savant_raw_metrics(year: int, player_type: str = "batter"):
                             merged_map[pid]["off_pitches"] = merged_map[pid].get("off_pitches", 0.0) + pitches
 
                     for pid, pdata in merged_map.items():
-                        if "total_pitches" in pdata:
+                        tot_p = pdata.get("total_pitches", 0.0)
+                        if tot_p > 0:
                             fb_i = round(pdata.get("fastball_rv", 0.0))
                             brk_i = round(pdata.get("breaking_rv", 0.0))
                             off_i = round(pdata.get("offspeed_rv", 0.0))
                             pdata["pitching_rv"] = float(fb_i + brk_i + off_i)
+                            mix_cnt = pdata.pop("_mix_cnt", {})
+                            if mix_cnt:
+                                pdata["pitch_mix"] = {
+                                    g: round((mix_cnt.get(g, 0.0) / tot_p) * 100.0, 1)
+                                    for g in ("FF", "SI", "FC", "SL", "CU", "CH")
+                                }
         except Exception:
             pass
 
@@ -288,11 +347,31 @@ def fetch_savant_raw_metrics(year: int, player_type: str = "batter"):
         except Exception:
             pass
 
+        if year >= 2020:
+            try:
+                aa_res = requests.get(
+                    "https://baseballsavant.mlb.com/leaderboard/pitcher-arm-angles",
+                    params={"all": "true", "type": "pitcher", "year": year, "min": "1", "csv": "true"},
+                    impersonate="chrome", timeout=20,
+                )
+                if aa_res.status_code == 200:
+                    aa_df = pd.read_csv(io.StringIO(aa_res.text))
+                    id_col = next((c for c in ("pitcher", "player_id", "id") if c in aa_df.columns), None)
+                    val_col = next((c for c in ("ball_angle", "arm_angle", "avg_arm_angle") if c in aa_df.columns), None)
+                    if id_col and val_col:
+                        for _, r in aa_df.iterrows():
+                            if pd.notna(r.get(id_col)) and pd.notna(r.get(val_col)):
+                                pid = int(r[id_col])
+                                merged_map.setdefault(pid, {})
+                                merged_map[pid]["arm_angle"] = float(r[val_col])
+            except Exception:
+                pass
+
     return merged_map
 
 
 def enrich_official_pitcher_prs(raw_pit_map: dict, pr_pit_dict: dict):
-    """補齊球種 Run Value、GB % 與 xERA 的官方 PR"""
+    """補齊球種 Run Value、GB %、xERA 的官方 PR 以及 Arm Angle / Statcast Zone% 聯盟 PR"""
     if not raw_pit_map or not pr_pit_dict:
         return
 
@@ -331,6 +410,26 @@ def enrich_official_pitcher_prs(raw_pit_map: dict, pr_pit_dict: dict):
         for pid in qualified_pids
         if pd.notna(raw_pit_map[pid].get("xera"))
     ])
+
+    for col, pr_col in (("arm_angle", "arm_angle_pr"), ("in_zone_percent", "in_zone_percent_pr")):
+        pool_s = pd.Series([
+            float(raw_pit_map[pid][col])
+            for pid in qualified_pids
+            if pd.notna(raw_pit_map[pid].get(col))
+        ])
+        if pool_s.empty:
+            pool_s = pd.Series([
+                float(pdata[col])
+                for pdata in raw_pit_map.values()
+                if pd.notna(pdata.get(col))
+            ])
+        if not pool_s.empty:
+            for pid, pdata in raw_pit_map.items():
+                val = pdata.get(col)
+                if pd.notna(val):
+                    v = float(val)
+                    pct = int(round((pool_s < v).mean() * 98 + 1))
+                    pdata[pr_col] = max(1, min(99, pct))
 
     for pid in qualified_pids:
         row_pr = pr_pit_dict.setdefault(pid, {})
@@ -376,7 +475,18 @@ def build_raw_percentile_fallback(raw_map: dict, metrics_def: list) -> dict:
     return fallback_pr
 
 
+def format_pct_str(val):
+    if val is None or pd.isna(val):
+        return None
+    f = float(val)
+    if abs(f) <= 1.0:
+        f *= 100.0
+    return f"{f:.1f}%"
+
+
 def build_database():
+    os.makedirs(CACHE_DIR, exist_ok=True)
+
     print("1/4 正在載入 Chadwick 球員 ID 對照表...")
     chadwick = pyb.chadwick_register()
     min_year = min(YEARS)
@@ -433,6 +543,13 @@ def build_database():
 
     yearly_data = {}
     for yr in YEARS:
+        cache_path = os.path.join(CACHE_DIR, f"{yr}.json")
+        if yr != DEFAULT_YEAR and os.path.exists(cache_path):
+            print(f"2/4 [快取命中] 直接讀取 {yr} 年快取資料...")
+            with open(cache_path, "r", encoding="utf-8") as cf:
+                yearly_data[yr] = restore_int_keys(json.load(cf))
+            continue
+
         print(f"2/4 正在抓取 {yr} 年 Savant 與 FanGraphs 數據...")
         s_bat_pr = pyb.statcast_batter_percentile_ranks(yr)
         s_pit_pr = pyb.statcast_pitcher_percentile_ranks(yr)
@@ -442,7 +559,10 @@ def build_database():
         bat_raw_est_pr = build_raw_percentile_fallback(s_bat_raw, BATTER_METRICS)
         pit_raw_est_pr = build_raw_percentile_fallback(s_pit_raw, PITCHER_METRICS)
 
-        pr_pit_dict = s_pit_pr.set_index("player_id").to_dict("index") if not s_pit_pr.empty else {}
+        pr_pit_dict = (
+            s_pit_pr.drop_duplicates(subset=["player_id"]).set_index("player_id").to_dict("index")
+            if not s_pit_pr.empty else {}
+        )
         enrich_official_pitcher_prs(s_pit_raw, pr_pit_dict)
 
         fg_bat = fetch_fangraphs_leaders(yr, "bat")
@@ -468,8 +588,11 @@ def build_database():
         fg_bat_pr = compute_league_percentiles(fg_bat, "bat")
         fg_pit_pr = compute_league_percentiles(fg_pit, "pit")
 
-        yearly_data[yr] = {
-            "pr_bat": s_bat_pr.set_index("player_id").to_dict("index") if not s_bat_pr.empty else {},
+        yr_payload = {
+            "pr_bat": (
+                s_bat_pr.drop_duplicates(subset=["player_id"]).set_index("player_id").to_dict("index")
+                if not s_bat_pr.empty else {}
+            ),
             "pr_pit": pr_pit_dict,
             "raw_bat": s_bat_raw,
             "raw_pit": s_pit_raw,
@@ -480,9 +603,26 @@ def build_database():
             "fg_bat_pr": fg_bat_pr,
             "fg_pit_pr": fg_pit_pr,
         }
+        yearly_data[yr] = yr_payload
         print(f"    {yr} 年完成：打者 {len(fg_bat)} 筆、投手 {len(fg_pit)} 筆。")
 
-    print("3/4 正在整合多年份球員資料庫 (完整支援二刀流雙模式)...")
+        if yr != DEFAULT_YEAR:
+            with open(cache_path, "w", encoding="utf-8") as cf:
+                json.dump(clean_for_json(yr_payload), cf, ensure_ascii=False, separators=(",", ":"))
+
+    # 用 FanGraphs API 自帶的 xMLBAMID 建立反查表，補齊 Chadwick 尚未更新的新秀 fg_id
+    mlbam_to_fg = {}
+    for yr in YEARS:
+        for fg_map in (yearly_data[yr]["fg_bat"], yearly_data[yr]["fg_pit"]):
+            for pid, r in fg_map.items():
+                xm = r.get("xMLBAMID")
+                if xm is not None and pd.notna(xm):
+                    try:
+                        mlbam_to_fg[int(xm)] = int(pid)
+                    except (ValueError, TypeError):
+                        pass
+
+    print("3/4 正在整合 2015–2026 球員資料庫 (剔除空球季、壓縮體積、內建 SP/RP)...")
     players_db = {}
 
     def format_savant_items(metrics_def, pr_row, raw_row, est_row):
@@ -524,7 +664,8 @@ def build_database():
 
     for _, row in active_players.iterrows():
         mlbam_id = int(row["key_mlbam"])
-        fg_id = int(row["key_fangraphs"]) if pd.notna(row["key_fangraphs"]) else None
+        raw_fg = int(row["key_fangraphs"]) if pd.notna(row["key_fangraphs"]) else -1
+        fg_id = mlbam_to_fg.get(mlbam_id) or (raw_fg if raw_fg > 0 else None)
         bbref_id = str(row["key_bbref"]) if pd.notna(row["key_bbref"]) else None
 
         seasons_dict = {}
@@ -551,7 +692,14 @@ def build_database():
             bat_pr_map = yd["fg_bat_pr"].get(fg_id, {}) if fg_id else {}
             pit_pr_map = yd["fg_pit_pr"].get(fg_id, {}) if fg_id else {}
 
-            bat_fg, bat_fg_pr = {}, {}
+            has_bat = bool(bat_savant or fg_bat_row)
+            has_pit = bool(pit_savant or fg_pit_row)
+
+            # 跳過完全無出賽紀錄的空球季，大幅縮減 JSON 體積
+            if not has_bat and not has_pit:
+                continue
+
+            bat_fg, bat_fg_pr, bat_sim_raw = {}, {}, {}
             if fg_bat_row:
                 bat_fg = {
                     "fWAR": round(float(fg_bat_row.get("TOTAL_WAR", 0)), 1),
@@ -573,8 +721,20 @@ def build_database():
                     "BsR": bat_pr_map.get("REAL_BSR"),
                     "Def": bat_pr_map.get("REAL_DEF"),
                 }
+                for k in ("GB%", "Pull%", "Z-Swing%"):
+                    p_str = format_pct_str(fg_bat_row.get(k))
+                    if p_str is not None:
+                        bat_sim_raw[k] = p_str
 
-            pit_fg, pit_fg_pr = {}, {}
+            bat_sim_pr = {
+                k: bat_pr_map.get(k)
+                for k in ("GB%", "Pull%", "Z-Swing%")
+                if bat_pr_map.get(k) is not None
+            }
+
+            pit_fg, pit_fg_pr, pit_sim_raw = {}, {}, {}
+            pit_sub_role = None
+            pit_ip = 0.0
             if fg_pit_row:
                 stuff_val = fg_pit_row.get("Stuff+") or fg_pit_row.get("sp_stuff")
                 pit_fg = {
@@ -597,29 +757,66 @@ def build_database():
                     "LOB%": pit_pr_map.get("LOB%"),
                     "Stuff+": pit_pr_map.get("Stuff+"),
                 }
+                g_val = float(fg_pit_row.get("G") or 0)
+                gs_val = float(fg_pit_row.get("GS") or 0)
+                pit_ip = round(float(fg_pit_row.get("IP") or 0), 1)
+                if g_val > 0:
+                    pit_sub_role = "SP" if (gs_val / g_val) >= 0.4 else "RP"
 
-            has_bat = bool(bat_savant or bat_fg)
-            has_pit = bool(pit_savant or pit_fg)
+            raw_pit_row = yd["raw_pit"].get(mlbam_id) or {}
+            pit_sim_pr = {}
 
-            yr_role = "batter" if has_bat else ("pitcher" if has_pit else "batter")
-            if yr == DEFAULT_YEAR:
-                default_role = yr_role
+            # Zone% 優先採用 Statcast (in_zone_percent，聯盟平均 ~50%)，缺值才退回 FanGraphs
+            if raw_pit_row.get("in_zone_percent_pr") is not None:
+                pit_sim_pr["Zone%"] = raw_pit_row.get("in_zone_percent_pr")
+            elif pit_pr_map.get("Zone%") is not None:
+                pit_sim_pr["Zone%"] = pit_pr_map.get("Zone%")
 
-            seasons_dict[str(yr)] = {
+            if raw_pit_row.get("in_zone_percent") is not None and pd.notna(raw_pit_row.get("in_zone_percent")):
+                iz_str = format_pct_str(raw_pit_row.get("in_zone_percent"))
+                if iz_str is not None:
+                    pit_sim_raw["Zone%"] = iz_str
+            elif fg_pit_row:
+                z_str = format_pct_str(fg_pit_row.get("Zone%"))
+                if z_str is not None:
+                    pit_sim_raw["Zone%"] = z_str
+
+            if raw_pit_row.get("arm_angle_pr") is not None:
+                pit_sim_pr["Arm Angle"] = raw_pit_row.get("arm_angle_pr")
+            if raw_pit_row.get("arm_angle") is not None and pd.notna(raw_pit_row.get("arm_angle")):
+                pit_sim_raw["Arm Angle"] = f"{int(round(float(raw_pit_row['arm_angle'])))}°"
+
+            yr_role = "batter" if has_bat else "pitcher"
+            default_role = yr_role
+
+            season_entry = {
                 "role": yr_role,
                 "has_bat": has_bat,
                 "has_pit": has_pit,
-                "batting": {
+            }
+            if has_bat:
+                season_entry["batting"] = {
                     "savant_pr": bat_savant,
                     "fangraphs": bat_fg,
                     "fangraphs_pr": bat_fg_pr,
-                },
-                "pitching": {
+                    "sim_pr": bat_sim_pr,
+                    "sim_raw": bat_sim_raw,
+                }
+            if has_pit:
+                season_entry["pitching"] = {
                     "savant_pr": pit_savant,
                     "fangraphs": pit_fg,
                     "fangraphs_pr": pit_fg_pr,
-                },
-            }
+                    "pitch_mix": raw_pit_row.get("pitch_mix"),
+                    "sim_pr": pit_sim_pr,
+                    "sim_raw": pit_sim_raw,
+                    "sub_role": pit_sub_role,
+                    "ip": pit_ip,
+                }
+            seasons_dict[str(yr)] = season_entry
+
+        if not seasons_dict:
+            continue
 
         players_db[str(mlbam_id)] = {
             "mlbam_id": mlbam_id,
@@ -632,17 +829,18 @@ def build_database():
 
     with open("mlb_data.json", "w", encoding="utf-8") as f:
         json.dump(
-            {
+            clean_for_json({
                 "years": sorted(YEARS, reverse=True),
                 "default_year": DEFAULT_YEAR,
                 "players": players_db,
-            },
+            }),
             f,
             ensure_ascii=False,
-            indent=2,
+            separators=(",", ":"),
         )
 
-    print(f"4/4 完成！已輸出 mlb_data.json，共收錄 {len(players_db)} 位球員。")
+    size_mb = os.path.getsize("mlb_data.json") / (1024 * 1024)
+    print(f"4/4 完成！已輸出 mlb_data.json（{size_mb:.1f} MB），共收錄 {len(players_db)} 位球員（{min(YEARS)}–{max(YEARS)}）。")
 
 
 if __name__ == "__main__":
