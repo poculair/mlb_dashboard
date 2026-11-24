@@ -74,7 +74,8 @@ def fetch_fangraphs_leaders(year: int, stats_type: str = "bat"):
     # 投手補抓: 0=Standard(HR/9, G, GS, IP), 36=Stuff+, 5=Plate Discipline(Zone% 備援)
     extra_types = ["6", "2", "5"] if stats_type == "bat" else ["0", "36", "5"]
     extra_keys = [
-        "BsR", "BaseRunning", "Def", "Fielding", "ERA-", "Stuff+", "sp_stuff", "HR/9",
+        "BsR", "BaseRunning", "Def", "Defense", "Fielding", "Positional",
+        "ERA-", "Stuff+", "sp_stuff", "HR/9",
         "GB%", "Pull%", "Z-Swing%", "Zone%", "G", "GS", "IP",
     ]
     for t in extra_types:
@@ -132,13 +133,13 @@ def compute_league_percentiles(fg_map: dict, stats_type: str = "bat") -> dict:
     if stats_type == "bat" and "PA" in df.columns:
         pool = df[pd.to_numeric(df["PA"], errors="coerce") >= 50].copy()
         higher_better = [
-            "TOTAL_WAR", "OPS+", "wRC+", "wOBA", "ISO", "BABIP", "REAL_BSR", "REAL_DEF",
+            "WAR", "OPS+", "wRC+", "wOBA", "ISO", "BABIP", "REAL_BSR", "REAL_DEF",
             "GB%", "Pull%", "Z-Swing%",
         ]
         lower_better = []
     else:
         pool = df[pd.to_numeric(df["IP"], errors="coerce") >= 15].copy()
-        higher_better = ["TOTAL_WAR", "ERA+", "LOB%", "Stuff+", "Zone%"]
+        higher_better = ["WAR", "ERA+", "LOB%", "Stuff+", "Zone%"]
         lower_better = ["FIP", "xFIP", "SIERA", "ERA-", "HR/9"]
 
     if pool.empty:
@@ -545,9 +546,12 @@ def build_database():
     for yr in YEARS:
         cache_path = os.path.join(CACHE_DIR, f"{yr}.json")
         if yr != DEFAULT_YEAR and os.path.exists(cache_path):
-            print(f"2/4 [快取命中] 直接讀取 {yr} 年快取資料...")
+            print(f"2/4 [快取命中] 直接讀取 {yr} 年快取並同步單邊 WAR PR...")
             with open(cache_path, "r", encoding="utf-8") as cf:
-                yearly_data[yr] = restore_int_keys(json.load(cf))
+                yd_cached = restore_int_keys(json.load(cf))
+            yd_cached["fg_bat_pr"] = compute_league_percentiles(yd_cached.get("fg_bat", {}), "bat")
+            yd_cached["fg_pit_pr"] = compute_league_percentiles(yd_cached.get("fg_pit", {}), "pit")
+            yearly_data[yr] = yd_cached
             continue
 
         print(f"2/4 正在抓取 {yr} 年 Savant 與 FanGraphs 數據...")
@@ -569,20 +573,17 @@ def build_database():
         fg_pit = fetch_fangraphs_leaders(yr, "pit")
 
         for pid, r in fg_bat.items():
-            tot = float(r.get("WAR") or 0)
-            if pid in fg_pit:
-                tot += float(fg_pit[pid].get("WAR") or 0)
-            r["TOTAL_WAR"] = tot
             bsr_val = r.get("BsR") if r.get("BsR") is not None else r.get("BaseRunning")
-            def_val = r.get("Def") if r.get("Def") is not None else r.get("Fielding")
+            if r.get("Defense") is not None:
+                def_val = r.get("Defense")
+            elif r.get("Def") is not None:
+                def_val = r.get("Def")
+            elif r.get("Fielding") is not None and r.get("Positional") is not None:
+                def_val = float(r["Fielding"]) + float(r["Positional"])
+            else:
+                def_val = r.get("Fielding")
             r["REAL_BSR"] = float(bsr_val) if bsr_val is not None else 0.0
             r["REAL_DEF"] = float(def_val) if def_val is not None else 0.0
-
-        for pid, r in fg_pit.items():
-            tot = float(r.get("WAR") or 0)
-            if pid in fg_bat:
-                tot += float(fg_bat[pid].get("WAR") or 0)
-            r["TOTAL_WAR"] = tot
 
         enrich_ops_plus_and_era_plus(fg_bat, fg_pit)
         fg_bat_pr = compute_league_percentiles(fg_bat, "bat")
@@ -622,7 +623,7 @@ def build_database():
                     except (ValueError, TypeError):
                         pass
 
-    print("3/4 正在整合 2015–2026 球員資料庫 (剔除空球季、壓縮體積、內建 SP/RP)...")
+    print("3/4 正在整合 2015–2026 球員資料庫 (單邊 fWAR、打者 PA、內建 SP/RP)...")
     players_db = {}
 
     def format_savant_items(metrics_def, pr_row, raw_row, est_row):
@@ -700,9 +701,11 @@ def build_database():
                 continue
 
             bat_fg, bat_fg_pr, bat_sim_raw = {}, {}, {}
+            bat_pa = 0
             if fg_bat_row:
+                bat_pa = int(round(float(fg_bat_row.get("PA") or 0)))
                 bat_fg = {
-                    "fWAR": round(float(fg_bat_row.get("TOTAL_WAR", 0)), 1),
+                    "fWAR": round(float(fg_bat_row.get("WAR") or 0), 1),
                     "OPS+": fg_bat_row.get("OPS+"),
                     "wRC+": int(round(float(fg_bat_row.get("wRC+", 0)))) if fg_bat_row.get("wRC+") is not None else None,
                     "wOBA": round(float(fg_bat_row.get("wOBA", 0)), 3),
@@ -712,7 +715,7 @@ def build_database():
                     "Def": round(fg_bat_row["REAL_DEF"], 1),
                 }
                 bat_fg_pr = {
-                    "fWAR": bat_pr_map.get("TOTAL_WAR"),
+                    "fWAR": bat_pr_map.get("WAR"),
                     "OPS+": bat_pr_map.get("OPS+"),
                     "wRC+": bat_pr_map.get("wRC+"),
                     "wOBA": bat_pr_map.get("wOBA"),
@@ -738,7 +741,7 @@ def build_database():
             if fg_pit_row:
                 stuff_val = fg_pit_row.get("Stuff+") or fg_pit_row.get("sp_stuff")
                 pit_fg = {
-                    "fWAR": round(float(fg_pit_row.get("TOTAL_WAR", 0)), 1),
+                    "fWAR": round(float(fg_pit_row.get("WAR") or 0), 1),
                     "ERA+": fg_pit_row.get("ERA+"),
                     "FIP": round(float(fg_pit_row.get("FIP", 0)), 2),
                     "xFIP": round(float(fg_pit_row.get("xFIP", 0)), 2),
@@ -748,7 +751,7 @@ def build_database():
                     "Stuff+": int(round(float(stuff_val))) if stuff_val is not None and pd.notna(stuff_val) else "-",
                 }
                 pit_fg_pr = {
-                    "fWAR": pit_pr_map.get("TOTAL_WAR"),
+                    "fWAR": pit_pr_map.get("WAR"),
                     "ERA+": pit_pr_map.get("ERA+"),
                     "FIP": pit_pr_map.get("FIP"),
                     "xFIP": pit_pr_map.get("xFIP"),
@@ -801,6 +804,7 @@ def build_database():
                     "fangraphs_pr": bat_fg_pr,
                     "sim_pr": bat_sim_pr,
                     "sim_raw": bat_sim_raw,
+                    "pa": bat_pa,
                 }
             if has_pit:
                 season_entry["pitching"] = {

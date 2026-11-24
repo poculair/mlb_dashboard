@@ -39,27 +39,33 @@
 <body class="bg-slate-100 text-slate-800 font-sans antialiased">
 
   <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
-      <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-        <div class="flex items-center gap-2">
-          <span class="bg-red-600 text-xs font-bold px-2 py-1 rounded tracking-wider">MLB HUB</span>
-          <h1 class="text-lg font-bold tracking-tight">球員整合數據儀表板</h1>
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex flex-col md:flex-row items-center justify-between gap-2.5 sm:gap-3">
+      <div class="flex items-center gap-2 sm:gap-3 w-full md:w-auto justify-between md:justify-start">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="bg-red-600 text-[11px] sm:text-xs font-bold px-2 py-1 rounded tracking-wider whitespace-nowrap shrink-0">MLB HUB</span>
+          <h1 class="text-sm sm:text-lg font-bold tracking-tight whitespace-nowrap truncate">球員整合數據儀表板</h1>
         </div>
 
-        <div class="inline-flex rounded-lg bg-slate-800 p-1 border border-slate-700">
-          <button id="navBtnSingle" onclick="switchAppView('single')" class="px-3 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition">
-            單人總覽
+        <div class="inline-flex rounded-lg bg-slate-800 p-1 border border-slate-700 shrink-0">
+          <button id="navBtnSingle" onclick="switchAppView('single')" class="px-2 sm:px-3 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition whitespace-nowrap">
+            <span class="sm:hidden">單人</span>
+            <span class="hidden sm:inline">單人總覽</span>
           </button>
-          <button id="navBtnCompare" onclick="switchAppView('compare')" class="px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition">
-            ⚔️ 球員對決 (Compare)
+          <button id="navBtnCompare" onclick="switchAppView('compare')" class="px-2 sm:px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition whitespace-nowrap">
+            <span class="sm:hidden">⚔️ 對決</span>
+            <span class="hidden sm:inline">⚔️ 球員對決</span>
+          </button>
+          <button id="navBtnScanner" onclick="switchAppView('scanner')" class="px-2 sm:px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition whitespace-nowrap">
+            <span class="sm:hidden">🔥 雷達</span>
+            <span class="hidden sm:inline">🔥 Sleeper / Risk</span>
           </button>
         </div>
       </div>
 
-      <div id="singleHeaderControls" class="flex items-center gap-2.5 w-full md:w-auto">
+      <div id="singleHeaderControls" class="flex items-center gap-2 w-full md:w-auto">
         <select
           id="yearSelect"
-          class="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-blue-500 cursor-pointer"
+          class="bg-slate-800 text-white border border-slate-700 rounded-lg px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-bold focus:outline-none focus:border-blue-500 cursor-pointer shrink-0"
         >
           <option value="2026">2026 球季</option>
         </select>
@@ -68,78 +74,84 @@
           <input
             type="text"
             id="searchInput"
-            placeholder="輸入球員英文姓名 (如 Ohtani, Trout, Kershaw)..."
-            class="w-full bg-slate-800 text-white placeholder-slate-400 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+            placeholder="輸入球員英文姓名 (如 Ohtani, Trout)..."
+            class="w-full bg-slate-800 text-white placeholder-slate-400 border border-slate-700 rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm focus:outline-none focus:border-blue-500"
             autocomplete="off"
           />
           <div id="searchResults" class="hidden absolute left-0 right-0 mt-1 bg-white text-slate-800 rounded-lg shadow-xl border border-slate-200 max-h-72 overflow-y-auto z-50"></div>
         </div>
       </div>
 
-      <div id="compareHeaderControls" class="hidden items-center gap-2">
-        <span class="text-xs text-slate-400 font-semibold">對稱比對身分：</span>
+      <div id="compareHeaderControls" class="hidden items-center justify-between sm:justify-end gap-2 w-full md:w-auto">
+        <span class="text-xs text-slate-400 font-semibold whitespace-nowrap">比對身分：</span>
         <div class="inline-flex rounded-lg bg-slate-800 p-1 border border-slate-700">
-          <button id="cmpRoleBat" onclick="setCompareRole('batter')" class="px-3 py-1 text-xs font-bold rounded-md bg-emerald-600 text-white transition">
-            打者 vs 打者 (Batters)
+          <button id="cmpRoleBat" onclick="setCompareRole('batter')" class="px-2.5 sm:px-3 py-1 text-xs font-bold rounded-md bg-emerald-600 text-white transition whitespace-nowrap">
+            打者對決
           </button>
-          <button id="cmpRolePit" onclick="setCompareRole('pitcher')" class="px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition">
-            投手 vs 投手 (Pitchers)
+          <button id="cmpRolePit" onclick="setCompareRole('pitcher')" class="px-2.5 sm:px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition whitespace-nowrap">
+            投手對決
           </button>
         </div>
       </div>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 py-6 space-y-5">
+  <main class="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-5">
     <div id="statusBanner" class="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2.5 rounded-lg text-sm hidden"></div>
 
     <!-- ==================== 視圖 1：單人完整儀表板 ==================== -->
     <div id="singleViewSection" class="space-y-5">
       <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div class="flex items-center gap-4">
-            <img id="playerAvatar" src="" alt="Player" class="w-20 h-20 rounded-full object-cover bg-slate-100 border-2 border-slate-200 shrink-0" />
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <h2 id="playerName" class="text-2xl font-extrabold text-slate-900">-</h2>
-                <span id="playerPos" class="bg-slate-800 text-white text-xs font-bold px-2.5 py-0.5 rounded">-</span>
-                <span id="playerCurrentTeam" class="hidden bg-blue-50 text-blue-800 border border-blue-200 text-xs font-extrabold px-2 py-0.5 rounded"></span>
-                <span id="playerMeta" class="text-sm text-slate-500">-</span>
-
-                <div id="twoWaySwitch" class="hidden inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-300 ml-1">
-                  <button id="btnModeBat" onclick="switchRoleMode('batter')" class="px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition">
-                    打者 (Batting)
-                  </button>
-                  <button id="btnModePit" onclick="switchRoleMode('pitcher')" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition">
-                    投手 (Pitching)
-                  </button>
+        <div class="p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="w-full md:w-auto space-y-3">
+            <!-- 第一排：頭像 + 姓名/基本資訊 -->
+            <div class="flex items-center gap-3.5 sm:gap-4">
+              <img id="playerAvatar" src="" alt="Player" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover bg-slate-100 border-2 border-slate-200 shrink-0" />
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  <h2 id="playerName" class="text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight">-</h2>
+                  <span id="playerPos" class="bg-slate-800 text-white text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap">-</span>
+                  <span id="playerCurrentTeam" class="hidden bg-blue-50 text-blue-800 border border-blue-200 text-xs font-extrabold px-2 py-0.5 rounded whitespace-nowrap"></span>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap mt-1">
+                  <span id="playerMeta" class="text-xs sm:text-sm text-slate-500">-</span>
+                  <div id="twoWaySwitch" class="hidden inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-300">
+                    <button id="btnModeBat" onclick="switchRoleMode('batter')" class="px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition whitespace-nowrap">
+                      打者 (Batting)
+                    </button>
+                    <button id="btnModePit" onclick="switchRoleMode('pitcher')" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition whitespace-nowrap">
+                      投手 (Pitching)
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              <div id="playerContractBadges" class="flex flex-wrap items-center gap-1.5 mt-2 empty:hidden"></div>
-              <div class="flex flex-wrap items-center gap-2 mt-2.5" id="externalLinks"></div>
             </div>
+
+            <!-- 第二排：合約標籤 + 外部連結 -->
+            <div id="playerContractBadges" class="flex flex-wrap items-center gap-1.5 empty:hidden"></div>
+            <div class="flex flex-wrap items-center gap-1.5 sm:gap-2" id="externalLinks"></div>
           </div>
 
-          <div class="flex items-center gap-3 self-stretch md:self-center shrink-0">
-            <div class="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 text-center min-w-[135px]">
-              <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">FanGraphs fWAR</div>
+          <!-- fWAR & OPS+/ERA+ 雙卡片 -->
+          <div class="flex items-stretch gap-2.5 sm:gap-3 w-full md:w-auto shrink-0">
+            <div class="flex-1 md:flex-none bg-emerald-50 border border-emerald-200 rounded-lg px-3 sm:px-4 py-2 text-center md:min-w-[135px]">
+              <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">FanGraphs fWAR</div>
               <div id="fwarVal" class="text-2xl font-black text-emerald-950 my-0.5">-</div>
-              <div id="fwarTierBadge" class="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-200/70 text-emerald-900">-</div>
+              <div id="fwarTierBadge" class="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-200/70 text-emerald-900 whitespace-nowrap">-</div>
             </div>
 
-            <div class="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2 text-center min-w-[135px]">
-              <div id="secondaryHeroTitle" class="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Standard OPS+</div>
+            <div class="flex-1 md:flex-none bg-indigo-50 border border-indigo-200 rounded-lg px-3 sm:px-4 py-2 text-center md:min-w-[135px]">
+              <div id="secondaryHeroTitle" class="text-[11px] font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Standard OPS+</div>
               <div id="secondaryHeroVal" class="text-2xl font-black text-indigo-950 my-0.5">-</div>
-              <div id="secondaryTierBadge" class="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-200/70 text-indigo-900">-</div>
+              <div id="secondaryTierBadge" class="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-200/70 text-indigo-900 whitespace-nowrap">-</div>
             </div>
           </div>
         </div>
 
-        <div class="bg-slate-900 text-white px-5 py-3.5 border-t border-slate-800">
+        <div class="bg-slate-900 text-white px-4 sm:px-5 py-3.5 border-t border-slate-800">
           <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 mb-3">
             <span class="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5 flex-wrap">
-              <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+              <span class="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
               <span id="topStatYearLabel">2026</span> 球季 MLB 官方數據 · <span id="topSplitTitle" class="text-amber-300">全季總計</span>
               <div id="seasonTeamControls" class="hidden inline-flex items-center gap-1 ml-1"></div>
             </span>
@@ -155,7 +167,7 @@
             </div>
           </div>
 
-          <div id="topSeasonStatGrid" class="grid grid-cols-5 sm:grid-cols-10 gap-2 text-center"></div>
+          <div id="topSeasonStatGrid" class="grid grid-cols-5 sm:grid-cols-10 gap-1.5 sm:gap-2 text-center"></div>
 
           <div id="topMonthlyTableWrapper" class="hidden overflow-x-auto mt-1">
             <table class="w-full text-xs text-right border-collapse">
@@ -168,25 +180,25 @@
         </div>
 
         <!-- 相似球員推薦列 -->
-        <div id="similarPlayersBar" class="hidden bg-slate-50 border-t border-slate-200 px-5 py-2.5 flex flex-wrap items-center gap-2"></div>
+        <div id="similarPlayersBar" class="hidden bg-slate-50 border-t border-slate-200 px-4 sm:px-5 py-2.5 flex flex-wrap items-center gap-2"></div>
       </section>
 
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <section class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+        <section class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5">
           <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3 mb-4">
             <div class="flex items-center gap-2">
-              <span class="w-2.5 h-6 bg-red-600 rounded-sm"></span>
-              <h3 class="text-lg font-bold text-slate-900">Statcast Percentile Rankings</h3>
+              <span class="w-2.5 h-6 bg-red-600 rounded-sm shrink-0"></span>
+              <h3 class="text-base sm:text-lg font-bold text-slate-900">Statcast Percentile Rankings</h3>
             </div>
             <div class="flex items-center gap-2">
-              <span id="savantLegend" class="text-xs text-slate-400">圓圈為 PR 值 / 右側為實測數據</span>
-              <span id="savantYearBadge" class="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded">2026 Season</span>
+              <span id="savantLegend" class="text-[11px] sm:text-xs text-slate-400">圓圈為 PR 值 / 右側為實測數據</span>
+              <span id="savantYearBadge" class="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded whitespace-nowrap">2026 Season</span>
             </div>
           </div>
           <div id="savantContainer" class="space-y-2.5"></div>
         </section>
 
-        <section class="lg:col-span-5 space-y-6">
+        <section class="lg:col-span-5 space-y-5 sm:space-y-6">
           <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div class="bg-emerald-700 text-white px-4 py-2.5 flex items-center justify-between">
               <span class="font-bold text-sm tracking-wide">FanGraphs Scouting Report</span>
@@ -198,42 +210,42 @@
           <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
             <div class="flex items-center justify-between border-b pb-2 mb-3">
               <h4 class="text-sm font-bold text-slate-700 uppercase tracking-wider">FanGraphs 進階指標 (附聯盟 PR)</h4>
-              <span id="fgYearTag" class="text-xs text-slate-400 font-semibold">2026</span>
+              <span id="fgYearTag" class="text-xs text-slate-400 font-semibold whitespace-nowrap">2026</span>
             </div>
-            <div id="fgMetricsGrid" class="grid grid-cols-3 gap-2.5 text-center"></div>
+            <div id="fgMetricsGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-center"></div>
 
             <!-- 獨立風格輪廓區 (中性特徵 + 當年度聯盟平均對照) -->
             <div id="styleProfileSection" class="hidden mt-4 pt-3.5 border-t border-slate-200">
-              <div class="flex items-center justify-between mb-2.5">
+              <div class="flex flex-wrap items-center justify-between gap-1 mb-2.5">
                 <h5 class="text-xs font-extrabold text-slate-600 uppercase tracking-wider">風格輪廓 (Profile & Approach)</h5>
                 <span class="text-[10px] text-slate-400 font-semibold">中性特徵 · 附當季聯盟平均</span>
               </div>
-              <div id="styleProfileGrid" class="grid grid-cols-3 gap-2.5 text-center"></div>
+              <div id="styleProfileGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-center"></div>
             </div>
           </div>
         </section>
       </div>
 
       <!-- 投手專屬：球種均速對照 (7欄) + 左右打使用率與 Pitch Run Value (5欄) -->
-      <section id="pitchArsenalSection" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-          <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-6 bg-cyan-600 rounded-sm"></span>
-              <h3 class="text-base font-bold text-slate-900">Pitch Arsenal (球種使用率與均速)</h3>
+      <section id="pitchArsenalSection" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+        <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4 gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-2.5 h-6 bg-cyan-600 rounded-sm shrink-0"></span>
+              <h3 class="text-sm sm:text-base font-bold text-slate-900 truncate">Pitch Arsenal (球種使用率與均速)</h3>
             </div>
-            <span id="arsenalYearBadge" class="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded">2026</span>
+            <span id="arsenalYearBadge" class="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded whitespace-nowrap shrink-0">2026</span>
           </div>
           <div id="pitchArsenalOverview" class="overflow-x-auto"></div>
         </div>
 
-        <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-          <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+        <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-3 mb-4 gap-1">
             <div class="flex items-center gap-2">
-              <span class="w-2.5 h-6 bg-rose-600 rounded-sm"></span>
-              <h3 id="pitchUsageTitle" class="text-base font-bold text-slate-900">2026 Pitch Usage (vs. LHH / RHH)</h3>
+              <span class="w-2.5 h-6 bg-rose-600 rounded-sm shrink-0"></span>
+              <h3 id="pitchUsageTitle" class="text-sm sm:text-base font-bold text-slate-900">2026 Pitch Usage (vs. LHH / RHH)</h3>
             </div>
-            <span class="text-xs text-slate-400">中間為左右打 Pitch Run Value</span>
+            <span class="text-[11px] sm:text-xs text-slate-400 pl-4 sm:pl-0">中間為左右打 Pitch Run Value</span>
           </div>
           <div id="pitchUsageSplits"></div>
         </div>
@@ -261,16 +273,16 @@
           </div>
 
           <div class="flex items-center gap-3 pt-1">
-            <img id="cmpAvatar1" src="" alt="P1" class="w-16 h-16 rounded-full object-cover bg-slate-100 border-2 border-blue-200" />
+            <img id="cmpAvatar1" src="" alt="P1" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover bg-slate-100 border-2 border-blue-200" />
             <div>
-              <h3 id="cmpName1" class="text-xl font-black text-slate-900">-</h3>
+              <h3 id="cmpName1" class="text-lg sm:text-xl font-black text-slate-900">-</h3>
               <p id="cmpMeta1" class="text-xs text-slate-500 font-medium">MLB ID: -</p>
             </div>
           </div>
         </div>
 
-        <div class="md:col-span-2 flex flex-col items-center justify-center gap-2 py-2">
-          <div class="w-12 h-12 rounded-full bg-slate-900 text-white font-black text-sm flex items-center justify-center shadow-md border-2 border-amber-400">
+        <div class="md:col-span-2 flex flex-row md:flex-col items-center justify-center gap-2 py-1 md:py-2">
+          <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-900 text-white font-black text-xs md:text-sm flex items-center justify-center shadow-md border-2 border-amber-400">
             VS
           </div>
           <span id="cmpRoleBadge" class="text-xs font-bold text-slate-500">打者對決</span>
@@ -294,9 +306,9 @@
           </div>
 
           <div class="flex items-center gap-3 pt-1">
-            <img id="cmpAvatar2" src="" alt="P2" class="w-16 h-16 rounded-full object-cover bg-slate-100 border-2 border-rose-200" />
+            <img id="cmpAvatar2" src="" alt="P2" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover bg-slate-100 border-2 border-rose-200" />
             <div>
-              <h3 id="cmpName2" class="text-xl font-black text-slate-900">-</h3>
+              <h3 id="cmpName2" class="text-lg sm:text-xl font-black text-slate-900">-</h3>
               <p id="cmpMeta2" class="text-xs text-slate-500 font-medium">MLB ID: -</p>
             </div>
           </div>
@@ -307,15 +319,15 @@
       <div id="cmpSimilarBar" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-2"></div>
 
       <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="grid grid-cols-12 bg-slate-900 text-white py-3 px-4 text-xs font-extrabold uppercase tracking-wider items-center">
-          <div class="col-span-5 text-left sm:text-center text-blue-300">
-            <span id="cmpTableHead1">Player 1</span> · Values & PR
+        <div class="grid grid-cols-12 bg-slate-900 text-white py-3 px-3 sm:px-4 text-xs font-extrabold uppercase tracking-wider items-center">
+          <div class="col-span-6 md:col-span-5 text-left md:text-center text-blue-300 truncate">
+            <span id="cmpTableHead1">Player 1</span>
           </div>
-          <div class="col-span-2 text-center text-amber-300">
+          <div class="hidden md:block md:col-span-2 text-center text-amber-300">
             Compared Items
           </div>
-          <div class="col-span-5 text-right sm:text-center text-rose-300">
-            <span id="cmpTableHead2">Player 2</span> · Values & PR
+          <div class="col-span-6 md:col-span-5 text-right md:text-center text-rose-300 truncate">
+            <span id="cmpTableHead2">Player 2</span>
           </div>
         </div>
 
@@ -335,19 +347,148 @@
         <div id="cmpStyleRows" class="divide-y divide-slate-100 px-3 sm:px-6 py-2"></div>
       </section>
     </div>
+
+    <!-- ==================== 視圖 3：Top 10 Sleeper / Risk 掃描雷達 ==================== -->
+    <div id="scannerViewSection" class="hidden space-y-5">
+      <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+          <div>
+            <h2 class="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
+              <span>🔥 Top 10 Sleeper / Risk 掃描雷達</span>
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">
+              以底層物理與技能輪廓計算前 5 名相似球員之「群組均值」，找出與當季帳面成績落差最大的反彈潛力與回歸風險名單。
+            </p>
+          </div>
+          <span id="scanMetaInfo" class="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded self-start sm:self-auto whitespace-nowrap">
+            等待掃描...
+          </span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- 目標年度 -->
+          <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+            <span class="text-xs font-bold text-slate-500 whitespace-nowrap">目標球季</span>
+            <select id="scanTargetYear" onchange="onScanTargetYearChange()" class="bg-transparent text-xs sm:text-sm font-extrabold text-slate-900 focus:outline-none cursor-pointer"></select>
+          </div>
+
+          <!-- 比對年份區間 -->
+          <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+            <span class="text-xs font-bold text-slate-500 whitespace-nowrap">比對池範圍</span>
+            <select id="scanPoolFrom" onchange="onScanRangeChange('from', this.value)" class="bg-transparent text-xs sm:text-sm font-extrabold text-slate-900 focus:outline-none cursor-pointer"></select>
+            <span class="text-slate-400 text-xs">–</span>
+            <select id="scanPoolTo" onchange="onScanRangeChange('to', this.value)" class="bg-transparent text-xs sm:text-sm font-extrabold text-slate-900 focus:outline-none cursor-pointer"></select>
+          </div>
+
+          <!-- 身分與模式 -->
+          <div class="inline-flex rounded-lg bg-slate-100 p-1 border border-slate-200 flex-wrap gap-0.5">
+            <button id="scanRoleBatFull" onclick="setScanRole('batter_full')" class="px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition whitespace-nowrap">打者 (完整)</button>
+            <button id="scanRoleBatPure" onclick="setScanRole('batter_batting')" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition whitespace-nowrap">打者 (純打擊)</button>
+            <button id="scanRolePitSP" onclick="setScanRole('pitcher_sp')" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition whitespace-nowrap">先發 (SP)</button>
+            <button id="scanRolePitRP" onclick="setScanRole('pitcher_rp')" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition whitespace-nowrap">後援 (RP)</button>
+          </div>
+
+          <!-- 排序指標 -->
+          <div class="inline-flex items-center rounded-lg bg-slate-100 p-1 border border-slate-200 gap-0.5">
+            <button id="scanMetricNorm" onclick="setScanMetric('fWAR_norm')" class="px-2.5 py-1 text-xs font-bold rounded-md bg-emerald-600 text-white transition whitespace-nowrap">依 fWAR/600PA</button>
+            <button id="scanMetricFwar" onclick="setScanMetric('fWAR')" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition whitespace-nowrap">依總 fWAR</button>
+            <button id="scanMetricRate" onclick="setScanMetric('rate')" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition whitespace-nowrap">依 wRC+ 差值</button>
+          </div>
+
+          <!-- 最低均似度門檻 -->
+          <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
+            <label class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer select-none whitespace-nowrap" title="勾選後僅顯示 5 位相似球員平均相似度大於等於指定數值之球員">
+              <input type="checkbox" id="scanUseMinSim" checked onchange="onScanMinSimToggle(this.checked)" class="rounded text-blue-600 focus:ring-blue-500 cursor-pointer" />
+              <span>最低均似度 ≥</span>
+            </label>
+            <input type="number" id="scanMinSimInput" value="72" min="1" max="99" step="1"
+                   oninput="onScanMinSimValChange(this.value)"
+                   class="w-12 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-extrabold text-slate-900 text-center focus:outline-none focus:border-blue-500" />
+            <span class="text-xs font-bold text-slate-400">%</span>
+          </div>
+
+          <!-- 主力品質門檻（預設取當年度平均） -->
+          <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
+            <label class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer select-none whitespace-nowrap"
+                   title="預設帶入當年度合規平均：Sleeper 僅保留群組均值達標者（濾掉極爛變普通），Risk 僅保留實測表現達標者">
+              <input type="checkbox" id="scanUseQual" checked onchange="onScanQualToggle(this.checked)" class="rounded text-blue-600 focus:ring-blue-500 cursor-pointer" />
+              <span>品質門檻 <span id="scanQualMetricLbl" class="text-indigo-700">fWAR/600PA</span> <span id="scanQualOp">≥</span></span>
+            </label>
+            <input type="number" id="scanQualInput" value="2.2" step="0.1"
+                   oninput="onScanQualValChange(this.value)"
+                   class="w-16 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-extrabold text-slate-900 text-center focus:outline-none focus:border-blue-500" />
+            <span id="scanQualAvgHint" class="text-[11px] font-semibold text-slate-400 whitespace-nowrap" title="目標年度合規球員平均值"></span>
+          </div>
+        </div>
+      </section>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- 左欄：Top 10 Sleeper -->
+        <section class="bg-white rounded-xl shadow-sm border border-emerald-200 overflow-hidden">
+          <div class="bg-emerald-700 text-white px-4 py-3 flex items-center justify-between gap-2">
+            <div>
+              <h3 class="font-extrabold text-sm sm:text-base tracking-wide">🚀 Top 10 Sleeper（反彈潛力）</h3>
+              <p id="sleeperSubDesc" class="text-[11px] text-emerald-100">群組均值 &gt; 實際表現（底層工具優於帳面成績）</p>
+            </div>
+            <span id="sleeperMetricBadge" class="text-xs font-bold bg-emerald-800 px-2 py-0.5 rounded whitespace-nowrap">fWAR/600PA</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs sm:text-sm border-collapse">
+              <thead class="bg-emerald-50/70 text-emerald-900 border-b border-emerald-200 text-[11px] uppercase">
+                <tr>
+                  <th class="py-2 px-2.5 text-center w-9">#</th>
+                  <th class="py-2 px-2 text-left">球員</th>
+                  <th class="py-2 px-2 text-right whitespace-nowrap">實測</th>
+                  <th class="py-2 px-2 text-right whitespace-nowrap">群組均值</th>
+                  <th class="py-2 px-2.5 text-right whitespace-nowrap">差值</th>
+                  <th class="py-2 px-2.5 text-right whitespace-nowrap">均似度</th>
+                </tr>
+              </thead>
+              <tbody id="sleeperTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 右欄：Top 10 Risk -->
+        <section class="bg-white rounded-xl shadow-sm border border-rose-200 overflow-hidden">
+          <div class="bg-rose-700 text-white px-4 py-3 flex items-center justify-between gap-2">
+            <div>
+              <h3 class="font-extrabold text-sm sm:text-base tracking-wide">⚠️ Top 10 Risk（回歸風險）</h3>
+              <p id="riskSubDesc" class="text-[11px] text-rose-100">實際表現 &gt; 群組均值（帳面成績高於底層預期）</p>
+            </div>
+            <span id="riskMetricBadge" class="text-xs font-bold bg-rose-800 px-2 py-0.5 rounded whitespace-nowrap">fWAR/600PA</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs sm:text-sm border-collapse">
+              <thead class="bg-rose-50/70 text-rose-900 border-b border-rose-200 text-[11px] uppercase">
+                <tr>
+                  <th class="py-2 px-2.5 text-center w-9">#</th>
+                  <th class="py-2 px-2 text-left">球員</th>
+                  <th class="py-2 px-2 text-right whitespace-nowrap">實測</th>
+                  <th class="py-2 px-2 text-right whitespace-nowrap">群組均值</th>
+                  <th class="py-2 px-2.5 text-right whitespace-nowrap">差值</th>
+                  <th class="py-2 px-2.5 text-right whitespace-nowrap">均似度</th>
+                </tr>
+              </thead>
+              <tbody id="riskTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
   </main>
 
   <!-- ==================== 合約明細彈出視窗 (Contract Modal) ==================== -->
-  <div id="contractModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" onclick="if(event.target === this) closeContractModal()">
+  <div id="contractModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4" onclick="if(event.target === this) closeContractModal()">
     <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
-      <div class="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between">
-        <div>
-          <h3 id="contractModalTitle" class="font-extrabold text-base tracking-tight">合約明細</h3>
-          <p id="contractModalSub" class="text-xs text-slate-300 mt-0.5">-</p>
+      <div class="bg-slate-900 text-white px-4 sm:px-5 py-3.5 flex items-center justify-between gap-2">
+        <div class="min-w-0">
+          <h3 id="contractModalTitle" class="font-extrabold text-base tracking-tight truncate">合約明細</h3>
+          <p id="contractModalSub" class="text-xs text-slate-300 mt-0.5 truncate">-</p>
         </div>
-        <button onclick="closeContractModal()" class="text-slate-400 hover:text-white text-xl font-bold leading-none px-2 py-1 rounded hover:bg-slate-800 transition">✕</button>
+        <button onclick="closeContractModal()" class="text-slate-400 hover:text-white text-xl font-bold leading-none px-2 py-1 rounded hover:bg-slate-800 transition shrink-0">✕</button>
       </div>
-      <div id="contractModalBody" class="p-5 overflow-y-auto space-y-4"></div>
+      <div id="contractModalBody" class="p-4 sm:p-5 overflow-y-auto space-y-4"></div>
     </div>
   </div>
 
@@ -362,7 +503,7 @@
     let selectedSeasonTeam = 'ALL';
     let currentSeasonTeams = [];
 
-    let simYearFrom = 2015;
+    let simYearFrom = 2024;
     let simYearTo = 2026;
     let simBatterMode = 'full';
 
@@ -373,12 +514,24 @@
       2: { id: null, year: "2026", officialBars: null }
     };
 
+    // Scanner 狀態
+    let scanRole = 'batter_full'; // 'batter_full' | 'batter_batting' | 'pitcher_sp' | 'pitcher_rp'
+    let scanMetric = 'fWAR_norm'; // 'fWAR_norm' | 'fWAR' | 'rate'
+    let scanPoolFrom = 2015;
+    let scanPoolTo = 2026;
+    let scanUseMinSim = true;
+    let scanMinSimVal = 72;
+    let scanUseQual = true;
+    let scanQualVal = null;
+    const scannerTeamCache = {};
+    let scanRenderToken = 0;
+
     const MLB_TEAM_ABBR = {
       "Arizona Diamondbacks": "ARI", "Athletics": "ATH", "Oakland Athletics": "ATH",
       "Atlanta Braves": "ATL", "Baltimore Orioles": "BAL", "Boston Red Sox": "BOS",
       "Chicago Cubs": "CHC", "Chicago White Sox": "CWS", "Cincinnati Reds": "CIN",
-      "Cleveland Guardians": "CLE", "Colorado Rockies": "COL", "Detroit Tigers": "DET",
-      "Houston Astros": "HOU", "Kansas City Royals": "KC", "Los Angeles Angels": "LAA",
+      "Cleveland Guardians": "CLE", "Cleveland Indians": "CLE", "Colorado Rockies": "COL", "Detroit Tigers": "DET",
+      "Houston Astros": "HOU", "Kansas City Royals": "KC", "Los Angeles Angels": "LAA", "Los Angeles Angels of Anaheim": "LAA",
       "Los Angeles Dodgers": "LAD", "Miami Marlins": "MIA", "Milwaukee Brewers": "MIL",
       "Minnesota Twins": "MIN", "New York Mets": "NYM", "New York Yankees": "NYY",
       "Philadelphia Phillies": "PHI", "Pittsburgh Pirates": "PIT", "San Diego Padres": "SD",
@@ -480,24 +633,49 @@
       return `聯盟 ${avgText} (${diffStr})`;
     }
 
-    // ==================== 相似球員演算法 (內建 SP/RP、IP 過濾、缺項微懲罰與高重疊門檻) ====================
+    // ==================== 薪資等級評級 (依 AAV 或當季薪資切分純薪資層級) ====================
+    function parseSalaryMillions(valStr) {
+      if (!valStr || valStr === '-') return NaN;
+      const clean = String(valStr).replace(/[$,\s]/g, '').toUpperCase();
+      const m = clean.match(/^(\d+(?:\.\d+)?)([MK])?$/);
+      if (!m) return NaN;
+      let num = parseFloat(m[1]);
+      if (m[2] === 'M') return num;
+      if (m[2] === 'K') return num / 1000;
+      return num >= 10000 ? num / 1e6 : num;
+    }
+
+    function getSalaryTier(valStr) {
+      const m = parseSalaryMillions(valStr);
+      if (isNaN(m) || m <= 0) return null;
+      if (m >= 35) return { text: '頂薪巨星 (Top 1%)', cls: 'bg-red-600 text-white' };
+      if (m >= 25) return { text: '頂級高薪', cls: 'bg-rose-600 text-white' };
+      if (m >= 15) return { text: '高薪主力', cls: 'bg-orange-500 text-white' };
+      if (m >= 8)  return { text: '中高薪資', cls: 'bg-emerald-600 text-white' };
+      if (m >= 3)  return { text: '中階薪資', cls: 'bg-teal-600 text-white' };
+      if (m >= 1)  return { text: '低階薪資', cls: 'bg-slate-200 text-slate-700' };
+      return { text: '底薪級', cls: 'bg-slate-100 text-slate-600 border border-slate-300' };
+    }
+
+    // ==================== 相似球員演算法 (重構權重 + 排除球種零值灌水 + 動態缺項懲罰 + 完整型態強制 BsR/Def) ====================
     const BATTER_CORE_SAVANT = [
-      ['Avg Exit Velo', 0.8],
-      ['Barrel %', 0.8],
-      ['Hard-Hit %', 0.8],
-      ['LA Sweet-Spot %', 1.0],
+      ['xwOBA', 1.6],
+      ['xBA', 1.0],
+      ['Barrel %', 0.9],
+      ['Avg Exit Velo', 0.5],
+      ['Hard-Hit %', 0.4],
       ['Bat Speed', 0.8],
-      ['Chase %', 1.0],
-      ['Whiff %', 1.0],
-      ['K %', 1.0],
-      ['BB %', 1.0],
-      ['xwOBA', 0.6],
+      ['LA Sweet-Spot %', 0.8],
+      ['K %', 1.1],
+      ['Whiff %', 0.6],
+      ['BB %', 0.9],
+      ['Chase %', 0.7],
     ];
 
     const BATTER_CORE_SIM = [
-      ['GB%', 0.8],
-      ['Pull%', 0.8],
-      ['Z-Swing%', 0.8],
+      ['GB%', 1.0],
+      ['Pull%', 1.0],
+      ['Z-Swing%', 0.6],
     ];
 
     const SIM_FEATURES = {
@@ -509,35 +687,40 @@
       batter_full: {
         savant: BATTER_CORE_SAVANT,
         fg: [
-          ['BsR', 1.8],
-          ['Def', 2.0],
+          ['BsR', 1.2],
+          ['Def', 1.4],
         ],
         sim: BATTER_CORE_SIM,
       },
       pitcher: {
         savant: [
           ['Fastball Velo', 1.0],
-          ['Fastball Spin', 1.0],
-          ['Extension', 1.0],
+          ['Fastball Spin', 0.8],
+          ['Extension', 0.8],
           ['GB %', 1.0],
           ['K %', 1.0],
           ['BB %', 1.0],
-          ['Fastball Run Value', 0.5],
-          ['Breaking Run Value', 0.5],
-          ['Offspeed Run Value', 0.5],
+          ['Whiff %', 1.0],
+          ['Chase %', 1.0],
+          ['Hard-Hit %', 1.0],
+          ['Fastball Run Value', 0.6],
+          ['Breaking Run Value', 0.6],
+          ['Offspeed Run Value', 0.6],
         ],
-        fg: [],
+        fg: [
+          ['Stuff+', 1.2],
+        ],
         sim: [
           ['Zone%', 0.8],
           ['Arm Angle', 0.9],
         ],
         mix: [
-          ['FF', 2.5],
-          ['SI', 2.5],
-          ['FC', 2.5],
-          ['SL', 2.5],
-          ['CU', 2.5],
-          ['CH', 2.5],
+          ['FF', 1.2],
+          ['SI', 1.2],
+          ['FC', 1.2],
+          ['SL', 1.2],
+          ['CU', 1.2],
+          ['CH', 1.2],
         ],
       }
     };
@@ -558,7 +741,7 @@
         : 'text-slate-600 hover:text-slate-900';
       return `
         <span class="inline-flex items-center rounded-md bg-white p-0.5 border border-slate-300 text-[11px] font-bold shadow-2xs" title="切換打者相似度計算維度">
-          <button onclick="setSimBatterMode('full')" class="px-2 py-0.5 rounded transition cursor-pointer ${fullCls}" title="包含打擊＋彈道/拉打/好球帶積極度＋高權重跑壘(BsR)與守備(Def)">完整型態</button>
+          <button onclick="setSimBatterMode('full')" class="px-2 py-0.5 rounded transition cursor-pointer ${fullCls}" title="包含打擊＋彈道/拉打/好球帶積極度＋跑壘(BsR)與守備(Def)">完整型態</button>
           <button onclick="setSimBatterMode('batting')" class="px-2 py-0.5 rounded transition cursor-pointer ${batCls}" title="僅比對擊球物理、彈道/拉打、本壘板紀律與 xwOBA，排除跑壘與守備">純打擊</button>
         </span>
       `;
@@ -595,14 +778,52 @@
       `;
     }
 
-    function extractSimilarityVector(modeData, role) {
+    function buildSimBenchmarkHtml(sims, role) {
+      if (!sims || sims.length === 0) return '';
+      const rateKey = role === 'pitcher' ? 'ERA+' : 'wRC+';
+      const fwarVals = [];
+      const rateVals = [];
+
+      for (const s of sims) {
+        const sObj = db.players[s.mlbam_id]?.seasons?.[s.year];
+        const fg = getModeData(sObj, role)?.fangraphs || {};
+        const fw = parseFloat(fg.fWAR);
+        if (!isNaN(fw)) fwarVals.push(fw);
+        const rv = parseFloat(fg[rateKey]);
+        if (!isNaN(rv)) rateVals.push(rv);
+      }
+
+      const parts = [];
+      const showFwar = !(role === 'batter' && simBatterMode === 'batting');
+      if (showFwar && fwarVals.length > 0) {
+        const avgFwar = (fwarVals.reduce((a, b) => a + b, 0) / fwarVals.length).toFixed(1);
+        parts.push(`fWAR ${avgFwar}`);
+      }
+      if (rateVals.length > 0) {
+        const avgRate = Math.round(rateVals.reduce((a, b) => a + b, 0) / rateVals.length);
+        parts.push(`${rateKey} ${avgRate}`);
+      }
+      if (parts.length === 0) return '';
+
+      return `
+        <span class="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-md px-2 py-0.5 text-[11px] font-bold shadow-2xs whitespace-nowrap"
+              title="以上 ${sims.length} 位相似球員之實測數據平均值，供評估底層工具基準">
+          <span class="text-indigo-400 font-semibold">群組均值</span>
+          <span>${parts.join(' · ')}</span>
+        </span>
+      `;
+    }
+
+    function extractSimilarityVector(modeData, role, allowEstPr = true) {
       const cfgKey = role === 'batter'
         ? (simBatterMode === 'batting' ? 'batter_batting' : 'batter_full')
         : 'pitcher';
       const cfg = SIM_FEATURES[cfgKey];
       if (!cfg || !modeData) return {};
       const vec = {};
-      const savantMap = new Map((modeData.savant_pr || []).map(item => [item.label, item.pr]));
+      const savantMap = new Map(
+        (modeData.savant_pr || []).map(item => [item.label, allowEstPr ? (item.pr ?? item.est_pr) : item.pr])
+      );
       for (const [lbl, w] of cfg.savant) {
         const pr = savantMap.get(lbl);
         if (pr !== null && pr !== undefined && !isNaN(Number(pr))) {
@@ -656,8 +877,8 @@
 
       const targetSubRole = role === 'pitcher' ? (targetSeason.pitching?.sub_role || null) : null;
       const minCandIp = targetSubRole === 'SP' ? 50 : 25;
+      const requireFullDefense = (role === 'batter' && simBatterMode === 'full');
 
-      // 拉高重疊門檻至 7 項，過濾樣本殘缺的候選人；年代缺項則代入固定中性懲罰而非免費跳過
       const minSavantOverlap = Math.min(7, targetSavantCount);
       const MISSING_PENALTY_D = 18;
       const candidates = [];
@@ -676,30 +897,52 @@
             const candSub = sObj.pitching?.sub_role;
             const candIp = Number(sObj.pitching?.ip || 0);
             if (!candSub || candSub !== targetSubRole || candIp < minCandIp) continue;
+          } else if (role === 'batter') {
+            const candPa = Number(sObj.batting?.pa || 0);
+            if (candPa > 0) {
+              if (candPa < 150) continue;
+            } else {
+              const offCnt = (sObj.batting?.savant_pr || []).filter(i => i.pr !== null && i.pr !== undefined).length;
+              if (offCnt < 4) continue;
+            }
           }
 
           const cMode = getModeData(sObj, role);
-          const cVec = extractSimilarityVector(cMode, role);
+          // 打者比對池僅採官方 PR，避免小樣本邊緣人汙染主力基準；投手維持允許 est_pr
+          const cVec = extractSimilarityVector(cMode, role, role === 'pitcher');
+
+          // 完整型態強制要求比對對象具備 BsR 與 Def（若目標具備）
+          if (requireFullDefense) {
+            if (targetVec['f:BsR'] !== undefined && cVec['f:BsR'] === undefined) continue;
+            if (targetVec['f:Def'] !== undefined && cVec['f:Def'] === undefined) continue;
+          }
 
           let sumSq = 0;
           let sumW = 0;
           let savantOverlap = 0;
           for (const k of targetKeys) {
+            const tv = targetVec[k].v;
             const w = targetVec[k].w;
+            const isMix = k.startsWith('m:');
             if (cVec[k] !== undefined) {
-              const d = targetVec[k].v - cVec[k].v;
+              const cv = cVec[k].v;
+              if (isMix && tv <= 3 && cv <= 3) continue; // 排除雙方皆未投該球種的零值灌水
+              const d = tv - cv;
               sumSq += w * d * d;
               sumW += w;
               if (k.startsWith('s:')) savantOverlap++;
             } else {
-              sumSq += w * MISSING_PENALTY_D * MISSING_PENALTY_D;
+              if (isMix && tv <= 3) continue;
+              // 動態缺項懲罰：以 PR 50 為基準，避免缺項在極端強項上佔便宜
+              const penD = isMix ? MISSING_PENALTY_D : Math.max(MISSING_PENALTY_D, Math.abs(tv - 50));
+              sumSq += w * penD * penD;
               sumW += w;
             }
           }
           if (savantOverlap < minSavantOverlap || sumW <= 0) continue;
 
           const rmsd = Math.sqrt(sumSq / sumW);
-          const similarity = Math.max(1, Math.min(99, Math.round(100 - rmsd * 1.6)));
+          const similarity = Math.max(1, Math.min(99, Math.round(100 - rmsd * 1.8)));
           candidates.push({
             mlbam_id: String(p.mlbam_id),
             name: p.name,
@@ -714,6 +957,601 @@
       return candidates.slice(0, topN);
     }
 
+    // ==================== Top 10 Sleeper / Risk 掃描雷達引擎 ====================
+    function getScannerMetricMeta(roleMode, metricMode) {
+      const isPitcher = roleMode.startsWith('pitcher');
+      const subRole = roleMode === 'pitcher_sp' ? 'SP' : (roleMode === 'pitcher_rp' ? 'RP' : null);
+
+      if (metricMode === 'rate') {
+        return isPitcher
+          ? { key: 'FIP', label: 'FIP', btnText: '依 FIP 差值', lowerIsBetter: true, decimals: 2, step: '0.05', unit: 'IP', minVol: subRole === 'SP' ? 50 : 25 }
+          : { key: 'wRC+', label: 'wRC+', btnText: '依 wRC+ 差值', lowerIsBetter: false, decimals: 0, step: '1', unit: 'PA', minVol: 0 };
+      }
+
+      if (metricMode === 'fWAR_norm') {
+        if (!isPitcher) {
+          return { key: 'fWAR_norm', label: 'fWAR/600PA', btnText: '依 fWAR/600PA', lowerIsBetter: false, decimals: 1, step: '0.1', normBase: 600, unit: 'PA', minVol: 150 };
+        }
+        if (subRole === 'SP') {
+          return { key: 'fWAR_norm', label: 'fWAR/180IP', btnText: '依 fWAR/180IP', lowerIsBetter: false, decimals: 1, step: '0.1', normBase: 180, unit: 'IP', minVol: 50 };
+        }
+        return { key: 'fWAR_norm', label: 'fWAR/65IP', btnText: '依 fWAR/65IP', lowerIsBetter: false, decimals: 1, step: '0.1', normBase: 65, unit: 'IP', minVol: 25 };
+      }
+
+      return {
+        key: 'fWAR',
+        label: 'fWAR',
+        btnText: '依總 fWAR',
+        lowerIsBetter: false,
+        decimals: 1,
+        step: '0.1',
+        unit: isPitcher ? 'IP' : 'PA',
+        minVol: isPitcher ? (subRole === 'SP' ? 50 : 25) : 0,
+      };
+    }
+
+    function extractScannerMetricVal(sObj, mData, roleMode, metricMode) {
+      const meta = getScannerMetricMeta(roleMode, metricMode);
+      const fg = mData.fangraphs || {};
+      const isPitcher = roleMode.startsWith('pitcher');
+      const vol = isPitcher ? Number(sObj.pitching?.ip || 0) : Number(sObj.batting?.pa || 0);
+
+      if (metricMode === 'fWAR_norm') {
+        const rawWar = parseFloat(fg.fWAR);
+        if (isNaN(rawWar) || vol < meta.minVol || vol <= 0) return { val: NaN, vol };
+        return { val: (rawWar / vol) * meta.normBase, vol };
+      }
+      return { val: parseFloat(fg[meta.key]), vol };
+    }
+
+    function formatScanNum(v, decimals) {
+      if (decimals === 0) return String(Math.round(v));
+      return v.toFixed(decimals);
+    }
+
+    function getScannerYearAvg(targetYear, roleMode, metricMode) {
+      const meta = getScannerMetricMeta(roleMode, metricMode);
+      if (meta.key === 'wRC+') return 100;
+
+      const isPitcher = roleMode.startsWith('pitcher');
+      const baseRole = isPitcher ? 'pitcher' : 'batter';
+      const subRole = roleMode === 'pitcher_sp' ? 'SP' : (roleMode === 'pitcher_rp' ? 'RP' : null);
+      const minIp = subRole === 'SP' ? 50 : 25;
+      const minTargetSavant = isPitcher ? 4 : 7;
+      const cfg = SIM_FEATURES[isPitcher ? 'pitcher' : roleMode];
+      const savantSet = new Set(cfg.savant.map(([k]) => k));
+
+      let sum = 0;
+      let cnt = 0;
+
+      for (const p of Object.values(db.players)) {
+        const sObj = p.seasons?.[String(targetYear)];
+        if (!sObj || !playerHasRoleInYear(p, String(targetYear), baseRole)) continue;
+        if (isPitcher) {
+          const pSub = sObj.pitching?.sub_role;
+          const pIp = Number(sObj.pitching?.ip || 0);
+          if (!pSub || pSub !== subRole || pIp < minIp) continue;
+        } else {
+          const pPa = Number(sObj.batting?.pa || 0);
+          if (pPa > 0 && pPa < 150) continue;
+        }
+        const mData = getModeData(sObj, baseRole);
+        const sCnt = (mData.savant_pr || []).filter(i => {
+          const v = isPitcher ? (i.pr ?? i.est_pr) : i.pr;
+          return savantSet.has(i.label) && v !== null && v !== undefined && !isNaN(Number(v));
+        }).length;
+        if (sCnt < minTargetSavant) continue;
+
+        const { val } = extractScannerMetricVal(sObj, mData, roleMode, metricMode);
+        if (!isNaN(val)) {
+          sum += val;
+          cnt++;
+        }
+      }
+
+      if (cnt > 0) {
+        return Number((sum / cnt).toFixed(meta.decimals));
+      }
+
+      if (meta.key === 'FIP') return roleMode === 'pitcher_rp' ? 4.05 : 4.20;
+      if (metricMode === 'fWAR_norm') {
+        if (!isPitcher) return 2.2;
+        return roleMode === 'pitcher_rp' ? 0.8 : 2.6;
+      }
+      return roleMode === 'pitcher_rp' ? 0.6 : 2.0;
+    }
+
+    function resetScannerQualDefault() {
+      const targetYear = String(document.getElementById('scanTargetYear').value || currentYear);
+      const meta = getScannerMetricMeta(scanRole, scanMetric);
+      const avg = getScannerYearAvg(targetYear, scanRole, scanMetric);
+      scanQualVal = avg;
+
+      const fmtAvg = formatScanNum(avg, meta.decimals);
+      const inp = document.getElementById('scanQualInput');
+      if (inp) {
+        inp.value = fmtAvg;
+        inp.step = meta.step;
+      }
+      const lbl = document.getElementById('scanQualMetricLbl');
+      if (lbl) lbl.textContent = meta.label;
+      const op = document.getElementById('scanQualOp');
+      if (op) op.textContent = meta.lowerIsBetter ? '≤' : '≥';
+      const hint = document.getElementById('scanQualAvgHint');
+      if (hint) hint.textContent = `(${targetYear} 均 ${fmtAvg})`;
+    }
+
+    function onScanTargetYearChange() {
+      resetScannerQualDefault();
+      runScanner();
+    }
+
+    function setScanRole(roleMode) {
+      scanRole = roleMode;
+      if (scanRole === 'batter_batting') {
+        scanMetric = 'rate';
+      }
+      syncScannerButtons();
+      resetScannerQualDefault();
+      runScanner();
+    }
+
+    function setScanMetric(metric) {
+      if (scanRole === 'batter_batting' && metric !== 'rate') return;
+      scanMetric = metric;
+      syncScannerButtons();
+      resetScannerQualDefault();
+      runScanner();
+    }
+
+    function onScanRangeChange(bound, val) {
+      const num = Number(val);
+      if (bound === 'from') {
+        scanPoolFrom = num;
+        if (scanPoolFrom > scanPoolTo) {
+          scanPoolTo = scanPoolFrom;
+          document.getElementById('scanPoolTo').value = String(scanPoolTo);
+        }
+      } else {
+        scanPoolTo = num;
+        if (scanPoolTo < scanPoolFrom) {
+          scanPoolFrom = scanPoolTo;
+          document.getElementById('scanPoolFrom').value = String(scanPoolFrom);
+        }
+      }
+      runScanner();
+    }
+
+    function onScanMinSimToggle(checked) {
+      scanUseMinSim = checked;
+      const inp = document.getElementById('scanMinSimInput');
+      if (inp) {
+        inp.disabled = !checked;
+        inp.classList.toggle('opacity-40', !checked);
+      }
+      runScanner();
+    }
+
+    function onScanMinSimValChange(val) {
+      const num = parseInt(val, 10);
+      if (!isNaN(num)) {
+        scanMinSimVal = Math.max(1, Math.min(99, num));
+        if (scanUseMinSim) runScanner();
+      }
+    }
+
+    function onScanQualToggle(checked) {
+      scanUseQual = checked;
+      const inp = document.getElementById('scanQualInput');
+      if (inp) {
+        inp.disabled = !checked;
+        inp.classList.toggle('opacity-40', !checked);
+      }
+      runScanner();
+    }
+
+    function onScanQualValChange(val) {
+      const num = parseFloat(val);
+      if (!isNaN(num)) {
+        scanQualVal = num;
+        if (scanUseQual) runScanner();
+      }
+    }
+
+    function syncScannerButtons() {
+      const roleBtns = {
+        batter_full: 'scanRoleBatFull',
+        batter_batting: 'scanRoleBatPure',
+        pitcher_sp: 'scanRolePitSP',
+        pitcher_rp: 'scanRolePitRP',
+      };
+      for (const [k, id] of Object.entries(roleBtns)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        el.className = k === scanRole
+          ? 'px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition whitespace-nowrap'
+          : 'px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition whitespace-nowrap';
+      }
+
+      const normMeta = getScannerMetricMeta(scanRole, 'fWAR_norm');
+      const rateMeta = getScannerMetricMeta(scanRole, 'rate');
+      const activeMeta = getScannerMetricMeta(scanRole, scanMetric);
+
+      const normBtn = document.getElementById('scanMetricNorm');
+      const fwarBtn = document.getElementById('scanMetricFwar');
+      const rateBtn = document.getElementById('scanMetricRate');
+
+      if (normBtn) normBtn.textContent = normMeta.btnText;
+      if (rateBtn) rateBtn.textContent = rateMeta.btnText;
+
+      const activeMetricCls = 'px-2.5 py-1 text-xs font-bold rounded-md bg-emerald-600 text-white transition whitespace-nowrap';
+      const idleMetricCls = 'px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition whitespace-nowrap';
+      const disabledMetricCls = 'px-2.5 py-1 text-xs font-bold rounded-md text-slate-300 cursor-not-allowed whitespace-nowrap';
+
+      if (scanRole === 'batter_batting') {
+        if (normBtn) {
+          normBtn.className = disabledMetricCls;
+          normBtn.title = '純打擊模式不含跑守，僅提供 wRC+ 差值';
+        }
+        fwarBtn.className = disabledMetricCls;
+        fwarBtn.title = '純打擊模式不含跑守，僅提供 wRC+ 差值';
+      } else {
+        if (normBtn) {
+          normBtn.title = `依出賽量標準化為 ${normMeta.label}（排除打席/局數落差）`;
+          normBtn.className = scanMetric === 'fWAR_norm' ? activeMetricCls : idleMetricCls;
+        }
+        fwarBtn.title = '單季累積 fWAR（單邊產出）';
+        fwarBtn.className = scanMetric === 'fWAR' ? activeMetricCls : idleMetricCls;
+      }
+
+      rateBtn.className = scanMetric === 'rate' ? activeMetricCls : idleMetricCls;
+
+      document.getElementById('sleeperMetricBadge').textContent = activeMeta.label;
+      document.getElementById('riskMetricBadge').textContent = activeMeta.label;
+
+      document.getElementById('sleeperSubDesc').textContent = activeMeta.lowerIsBetter
+        ? '群組均值 < 實際表現（底層工具優於帳面 FIP，預期下修）'
+        : `群組均值 > 實際表現（底層工具優於帳面 ${activeMeta.label}）`;
+      document.getElementById('riskSubDesc').textContent = activeMeta.lowerIsBetter
+        ? '實際表現 < 群組均值（帳面 FIP 優於底層預期，小心上修）'
+        : `實際表現 > 群組均值（帳面 ${activeMeta.label} 高於底層預期）`;
+    }
+
+    function openPlayerFromScanner(mlbamId, yr, role) {
+      simYearFrom = scanPoolFrom;
+      simYearTo = scanPoolTo;
+      if (role === 'batter') {
+        simBatterMode = scanRole === 'batter_batting' ? 'batting' : 'full';
+      }
+      switchAppView('single');
+      selectPlayer(String(mlbamId), String(yr), role);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function runScanner() {
+      const targetYear = String(document.getElementById('scanTargetYear').value || currentYear);
+      const isPitcher = scanRole.startsWith('pitcher');
+      const baseRole = isPitcher ? 'pitcher' : 'batter';
+      const subRole = scanRole === 'pitcher_sp' ? 'SP' : (scanRole === 'pitcher_rp' ? 'RP' : null);
+      const minIp = subRole === 'SP' ? 50 : 25;
+      const cfgKey = isPitcher ? 'pitcher' : scanRole;
+      const cfg = SIM_FEATURES[cfgKey];
+      const meta = getScannerMetricMeta(scanRole, scanMetric);
+      const lowerIsBetter = meta.lowerIsBetter;
+
+      const featSpecs = [];
+      for (const [k, w] of cfg.savant) featSpecs.push({ t: 's', k, w });
+      for (const [k, w] of cfg.fg) featSpecs.push({ t: 'f', k, w });
+      if (cfg.sim) for (const [k, w] of cfg.sim) featSpecs.push({ t: 'x', k, w });
+      if (cfg.mix) for (const [k, w] of cfg.mix) featSpecs.push({ t: 'm', k, w });
+      const F = featSpecs.length;
+      const savantLen = cfg.savant.length;
+      const bsrIdx = featSpecs.findIndex(sp => sp.t === 'f' && sp.k === 'BsR');
+      const defIdx = featSpecs.findIndex(sp => sp.t === 'f' && sp.k === 'Def');
+      const requireFullDefense = scanRole === 'batter_full';
+
+      function extractFlat(modeData) {
+        const arr = new Float64Array(F);
+        arr.fill(NaN);
+        let sCnt = 0;
+        const savantMap = new Map(
+          (modeData.savant_pr || []).map(i => [i.label, isPitcher ? (i.pr ?? i.est_pr) : i.pr])
+        );
+        const fgPr = modeData.fangraphs_pr || {};
+        const simPr = modeData.sim_pr || {};
+        const mix = modeData.pitch_mix || {};
+
+        for (let i = 0; i < F; i++) {
+          const sp = featSpecs[i];
+          let raw = null;
+          if (sp.t === 's') raw = savantMap.get(sp.k);
+          else if (sp.t === 'f') raw = fgPr[sp.k];
+          else if (sp.t === 'x') raw = simPr[sp.k];
+          else if (sp.t === 'm') raw = mix[sp.k];
+
+          if (raw !== null && raw !== undefined && !isNaN(Number(raw))) {
+            arr[i] = Number(raw);
+            if (i < savantLen) sCnt++;
+          }
+        }
+        return { arr, sCnt };
+      }
+
+      const targets = [];
+      const pool = [];
+      let sawAnyBatterPa = false;
+
+      for (const p of Object.values(db.players)) {
+        if (!p.seasons) continue;
+        for (const [yr, sObj] of Object.entries(p.seasons)) {
+          const yrNum = Number(yr);
+          const inPool = yrNum >= scanPoolFrom && yrNum <= scanPoolTo;
+          const isTarget = String(yr) === targetYear;
+          if (!inPool && !isTarget) continue;
+          if (!playerHasRoleInYear(p, yr, baseRole)) continue;
+
+          if (isPitcher) {
+            const pSub = sObj.pitching?.sub_role;
+            const pIp = Number(sObj.pitching?.ip || 0);
+            if (!pSub || pSub !== subRole || pIp < minIp) continue;
+          } else {
+            const pPa = Number(sObj.batting?.pa || 0);
+            if (pPa > 0) {
+              sawAnyBatterPa = true;
+              if (pPa < 150) continue;
+            }
+          }
+
+          const mData = getModeData(sObj, baseRole);
+          const { val: metricVal, vol } = extractScannerMetricVal(sObj, mData, scanRole, scanMetric);
+          const { arr, sCnt } = extractFlat(mData);
+
+          const rec = {
+            id: String(p.mlbam_id),
+            name: p.name,
+            year: String(yr),
+            arr,
+            sCnt,
+            metricVal,
+            vol,
+          };
+
+          const poolMetricOk = scanMetric !== 'fWAR_norm' || !isNaN(metricVal);
+          if (inPool && sCnt >= 4 && poolMetricOk) {
+            pool.push(rec);
+          }
+          const minTargetSavant = isPitcher ? 4 : 7;
+          if (isTarget && sCnt >= minTargetSavant && !isNaN(metricVal)) {
+            targets.push(rec);
+          }
+        }
+      }
+
+      if (!isPitcher && scanMetric === 'fWAR_norm' && !sawAnyBatterPa) {
+        const msg = `<tr><td colspan="6" class="py-8 text-center text-xs text-amber-600 font-bold">目前 mlb_data.json 尚未包含打者 PA 欄位，請先執行新版 python fetch_data.py 更新資料。</td></tr>`;
+        document.getElementById('scanMetaInfo').textContent = '需更新 mlb_data.json（缺少打者 PA）';
+        document.getElementById('sleeperTableBody').innerHTML = msg;
+        document.getElementById('riskTableBody').innerHTML = msg;
+        return;
+      }
+
+      const MISSING_PENALTY_D = 18;
+      const results = [];
+
+      for (let ti = 0; ti < targets.length; ti++) {
+        const t = targets[ti];
+        const tArr = t.arr;
+        const minOverlap = Math.min(7, t.sCnt);
+        const top5 = [];
+
+        for (let ci = 0; ci < pool.length; ci++) {
+          const c = pool[ci];
+          if (c.id === t.id) continue;
+
+          const cArr = c.arr;
+          if (requireFullDefense) {
+            if ((bsrIdx >= 0 && !isNaN(tArr[bsrIdx]) && isNaN(cArr[bsrIdx])) ||
+                (defIdx >= 0 && !isNaN(tArr[defIdx]) && isNaN(cArr[defIdx]))) {
+              continue;
+            }
+          }
+
+          let sumSq = 0;
+          let sumW = 0;
+          let overlap = 0;
+
+          for (let f = 0; f < F; f++) {
+            const tv = tArr[f];
+            if (isNaN(tv)) continue;
+            const sp = featSpecs[f];
+            const isMix = sp.t === 'm';
+            const cv = cArr[f];
+            if (!isNaN(cv)) {
+              if (isMix && tv <= 3 && cv <= 3) continue;
+              const d = tv - cv;
+              sumSq += sp.w * d * d;
+              sumW += sp.w;
+              if (f < savantLen) overlap++;
+            } else {
+              if (isMix && tv <= 3) continue;
+              const penD = isMix ? MISSING_PENALTY_D : Math.max(MISSING_PENALTY_D, Math.abs(tv - 50));
+              sumSq += sp.w * penD * penD;
+              sumW += sp.w;
+            }
+          }
+
+          if (overlap < minOverlap || sumW <= 0) continue;
+          const rmsd = Math.sqrt(sumSq / sumW);
+
+          if (top5.length < 5) {
+            top5.push({ rmsd, metricVal: c.metricVal });
+            if (top5.length === 5) top5.sort((a, b) => a.rmsd - b.rmsd);
+          } else if (rmsd < top5[4].rmsd) {
+            top5[4] = { rmsd, metricVal: c.metricVal };
+            top5.sort((a, b) => a.rmsd - b.rmsd);
+          }
+        }
+
+        if (top5.length < 3) continue;
+        let mSum = 0, mCnt = 0, simSum = 0;
+        for (const item of top5) {
+          if (!isNaN(item.metricVal)) {
+            mSum += item.metricVal;
+            mCnt++;
+          }
+          simSum += Math.max(1, Math.min(99, Math.round(100 - item.rmsd * 1.8)));
+        }
+        if (mCnt === 0) continue;
+
+        const groupAvg = mSum / mCnt;
+        const avgSim = Math.round(simSum / top5.length);
+        const rawDiff = groupAvg - t.metricVal;
+        const score = lowerIsBetter ? -rawDiff : rawDiff;
+
+        results.push({
+          id: t.id,
+          name: t.name,
+          year: t.year,
+          actual: t.metricVal,
+          groupAvg,
+          rawDiff,
+          score,
+          avgSim,
+          vol: t.vol,
+        });
+      }
+
+      const simFiltered = scanUseMinSim
+        ? results.filter(r => r.avgSim >= scanMinSimVal)
+        : results;
+
+      let sleeperPool = simFiltered.filter(r => r.score > 0);
+      let riskPool = simFiltered.filter(r => r.score < 0);
+
+      if (scanUseQual && scanQualVal !== null && !isNaN(scanQualVal)) {
+        if (lowerIsBetter) {
+          sleeperPool = sleeperPool.filter(r => r.groupAvg <= scanQualVal);
+          riskPool = riskPool.filter(r => r.actual <= scanQualVal);
+        } else {
+          sleeperPool = sleeperPool.filter(r => r.groupAvg >= scanQualVal);
+          riskPool = riskPool.filter(r => r.actual >= scanQualVal);
+        }
+      }
+
+      const activeFilterCount = sleeperPool.length + riskPool.length;
+      document.getElementById('scanMetaInfo').textContent = (scanUseMinSim || scanUseQual)
+        ? `掃描 ${targets.length} 位 · 達門檻 ${activeFilterCount} 位 · 比對池 ${pool.length} 人季`
+        : `掃描 ${targets.length} 位合規球員 · 比對池 ${pool.length} 人季`;
+
+      const sleepers = sleeperPool.sort((a, b) => b.score - a.score).slice(0, 10);
+      const risks = riskPool.sort((a, b) => a.score - b.score).slice(0, 10);
+
+      const fmtVal = (v) => formatScanNum(v, meta.decimals);
+      const fmtDiff = (v) => {
+        const s = formatScanNum(Math.abs(v), meta.decimals);
+        return v > 0 ? `+${s}` : `-${s}`;
+      };
+
+      const renderToken = ++scanRenderToken;
+      const missingTeamIds = new Set();
+
+      const buildTeamBadgeInner = (teamStr) => {
+        if (!teamStr) return '';
+        return `<span class="inline-block bg-slate-100 text-slate-600 border border-slate-200 px-1 py-0 rounded text-[10px] font-bold leading-tight whitespace-nowrap">${teamStr}</span>`;
+      };
+
+      const renderRows = (list, type) => {
+        if (list.length === 0) {
+          return `<tr><td colspan="6" class="py-8 text-center text-xs text-slate-400">此條件下無符合門檻之球員（可嘗試放寬均似度或品質門檻）</td></tr>`;
+        }
+        const diffCls = type === 'sleeper'
+          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+          : 'bg-rose-50 text-rose-700 border-rose-200';
+        return list.map((r, idx) => {
+          const teamCacheKey = `${r.year}_${baseRole}_${r.id}`;
+          const cachedTeam = scannerTeamCache[teamCacheKey] || db.players[r.id]?.seasons?.[r.year]?.team || '';
+          if (!cachedTeam) missingTeamIds.add(r.id);
+
+          const volTag = r.vol > 0
+            ? `<span class="text-[10px] font-mono text-slate-400 font-semibold">${isPitcher ? r.vol.toFixed(1) : r.vol} ${meta.unit}</span>`
+            : '';
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-2 px-2.5 text-center font-black text-slate-400 text-xs">${idx + 1}</td>
+              <td class="py-2 px-2">
+                <button onclick="openPlayerFromScanner('${r.id}', '${r.year}', '${baseRole}')" class="flex items-center gap-2 text-left group cursor-pointer">
+                  <img src="https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_64,q_auto:best/v1/people/${r.id}/headshot/67/current"
+                       alt="${r.name}" class="w-7 h-7 rounded-full object-cover bg-slate-100 border border-slate-200 shrink-0" />
+                  <div class="flex flex-col">
+                    <span class="font-bold text-slate-800 group-hover:text-blue-600 transition whitespace-nowrap leading-tight">${r.name}</span>
+                    <div class="flex items-center gap-1.5 mt-0.5">
+                      <span data-scan-team-key="${teamCacheKey}">${buildTeamBadgeInner(cachedTeam)}</span>
+                      ${volTag}
+                    </div>
+                  </div>
+                </button>
+              </td>
+              <td class="py-2 px-2 text-right font-mono font-bold text-slate-700 whitespace-nowrap">${fmtVal(r.actual)}</td>
+              <td class="py-2 px-2 text-right font-mono font-bold text-indigo-700 whitespace-nowrap">${fmtVal(r.groupAvg)}</td>
+              <td class="py-2 px-2.5 text-right whitespace-nowrap">
+                <span class="inline-block font-mono text-xs font-extrabold px-1.5 py-0.5 rounded border ${diffCls}">${fmtDiff(r.rawDiff)}</span>
+              </td>
+              <td class="py-2 px-2.5 text-right font-mono text-xs font-semibold text-slate-500 whitespace-nowrap">${r.avgSim}%</td>
+            </tr>
+          `;
+        }).join('');
+      };
+
+      document.getElementById('sleeperTableBody').innerHTML = renderRows(sleepers, 'sleeper');
+      document.getElementById('riskTableBody').innerHTML = renderRows(risks, 'risk');
+
+      if (missingTeamIds.size > 0) {
+        hydrateScannerTeams([...missingTeamIds], targetYear, baseRole, renderToken, buildTeamBadgeInner);
+      }
+    }
+
+    async function hydrateScannerTeams(ids, seasonYear, baseRole, renderToken, buildTeamBadgeInner) {
+      const group = baseRole === 'pitcher' ? 'pitching' : 'hitting';
+      try {
+        const url = `https://statsapi.mlb.com/api/v1/people?personIds=${ids.join(',')}&hydrate=currentTeam,stats(group=[${group}],type=[season],season=${seasonYear})`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        const people = data.people || [];
+
+        for (const person of people) {
+          const pid = String(person.id);
+          const teamAbbrs = [];
+          const seen = new Set();
+
+          for (const st of (person.stats || [])) {
+            for (const sp of (st.splits || [])) {
+              const abbr = toTeamAbbr(sp.team);
+              if (abbr && !seen.has(abbr)) {
+                seen.add(abbr);
+                teamAbbrs.push(abbr);
+              }
+            }
+          }
+
+          let teamStr = teamAbbrs.join('/');
+          if (!teamStr && person.currentTeam) {
+            teamStr = toTeamAbbr(person.currentTeam) || '';
+          }
+
+          if (teamStr) {
+            const cacheKey = `${seasonYear}_${baseRole}_${pid}`;
+            scannerTeamCache[cacheKey] = teamStr;
+            if (renderToken === scanRenderToken) {
+              document.querySelectorAll(`[data-scan-team-key="${cacheKey}"]`).forEach(el => {
+                el.innerHTML = buildTeamBadgeInner(teamStr);
+              });
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
     function quickCompareWith(p1Id, p1Yr, p2Id, p2Yr, role) {
       compareRole = role;
       cmpState[1].id = String(p1Id);
@@ -724,16 +1562,7 @@
       document.getElementById('cmpYear1').value = String(p1Yr);
       document.getElementById('cmpYear2').value = String(p2Yr);
 
-      appView = 'compare';
-      document.getElementById('singleViewSection').classList.add('hidden');
-      document.getElementById('singleHeaderControls').classList.add('hidden');
-      document.getElementById('compareViewSection').classList.remove('hidden');
-      const compareCtrl = document.getElementById('compareHeaderControls');
-      compareCtrl.classList.remove('hidden');
-      compareCtrl.classList.add('flex');
-      document.getElementById('navBtnCompare').className = "px-3 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition";
-      document.getElementById('navBtnSingle').className = "px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition";
-
+      switchAppView('compare', true);
       syncCompareRoleButtons();
       refreshCompareAll();
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -780,12 +1609,17 @@
         : `<span class="text-xs text-slate-400">此年份區間內無符合門檻之相似球員</span>`;
 
       bar.innerHTML = `
-        <span class="text-xs font-extrabold text-slate-500 whitespace-nowrap">
-          Similar ${roleText} (${currentYear}):
-        </span>
-        ${activeRoleMode === 'batter' ? buildSimBatterModeHtml() : ''}
-        ${buildSimYearRangeHtml()}
-        ${pills}
+        <div class="w-full flex flex-wrap items-center gap-2">
+          <span class="text-xs font-extrabold text-slate-500 whitespace-nowrap">
+            Similar ${roleText} (${currentYear}):
+          </span>
+          ${activeRoleMode === 'batter' ? buildSimBatterModeHtml() : ''}
+          ${buildSimYearRangeHtml()}
+          ${buildSimBenchmarkHtml(sims, activeRoleMode)}
+        </div>
+        <div class="w-full flex flex-wrap items-center gap-2">
+          ${pills}
+        </div>
       `;
       bar.classList.remove('hidden');
     }
@@ -824,12 +1658,17 @@
         : `<span class="text-xs text-slate-400">此年份區間內無符合門檻之相似對手</span>`;
 
       bar.innerHTML = `
-        <span class="text-xs font-extrabold text-slate-600 whitespace-nowrap">
-          ⚡ 與 ${p1.name} (${cmpState[1].year}${subSuffix}) 最相似的推薦對手：
-        </span>
-        ${compareRole === 'batter' ? buildSimBatterModeHtml() : ''}
-        ${buildSimYearRangeHtml()}
-        ${pills}
+        <div class="w-full flex flex-wrap items-center gap-2">
+          <span class="text-xs font-extrabold text-slate-600 whitespace-nowrap">
+            ⚡ 與 ${p1.name} (${cmpState[1].year}${subSuffix}) 最相似的推薦對手：
+          </span>
+          ${compareRole === 'batter' ? buildSimBatterModeHtml() : ''}
+          ${buildSimYearRangeHtml()}
+          ${buildSimBenchmarkHtml(sims, compareRole)}
+        </div>
+        <div class="w-full flex flex-wrap items-center gap-2">
+          ${pills}
+        </div>
       `;
       bar.classList.remove('hidden');
     }
@@ -889,7 +1728,7 @@
           stCls = 'bg-rose-50 text-rose-800 border-rose-300';
         }
         badges.push(`
-          <span class="inline-flex items-center border text-xs font-bold px-2 py-0.5 rounded ${stCls}" title="合約控制權狀態">
+          <span class="inline-flex items-center border text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ${stCls}" title="合約控制權狀態">
             ${rosterInfo.status}
           </span>
         `);
@@ -902,7 +1741,7 @@
           : 'bg-slate-100 text-slate-500 border-slate-300';
         const optText = optNum > 0 ? `Options: ${optNum}` : 'No Options';
         badges.push(`
-          <span class="inline-flex items-center border text-xs font-bold px-2 py-0.5 rounded ${optCls}" title="剩餘小聯盟下放選擇權 (MiLB Options)">
+          <span class="inline-flex items-center border text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ${optCls}" title="剩餘小聯盟下放選擇權 (MiLB Options)">
             ${optText}
           </span>
         `);
@@ -919,8 +1758,17 @@
       document.getElementById('contractModalTitle').textContent = `${p.name} · 合約明細`;
       document.getElementById('contractModalSub').textContent = [ri.contract, ri.status].filter(Boolean).join(' · ');
 
+      const curYrEntry = (ri.yearly || []).find(y => String(y.year) === String(currentYear));
+      const fallbackSal = (curYrEntry && curYrEntry.salary && curYrEntry.salary !== '-')
+        ? curYrEntry.salary
+        : ((ri.yearly || []).find(y => y.salary && y.salary !== '-')?.salary || null);
+
+      const primarySalCard = ri.aav
+        ? { label: 'AAV (豪華稅)', val: ri.aav, tier: getSalaryTier(ri.aav) }
+        : (fallbackSal ? { label: `${currentYear} 薪資`, val: fallbackSal, tier: getSalaryTier(fallbackSal) } : null);
+
       const summaryCards = [
-        ri.aav ? { label: 'AAV (豪華稅)', val: ri.aav } : null,
+        primarySalCard,
         ri.fa_year ? { label: 'Free Agent', val: ri.fa_year } : null,
         ri.service_time ? { label: 'Service Time', val: ri.service_time } : null,
         (ri.options !== null && ri.options !== undefined) ? { label: 'MiLB Options', val: ri.options } : null,
@@ -929,9 +1777,10 @@
       const summaryHtml = summaryCards.length > 0 ? `
         <div class="grid grid-cols-2 sm:grid-cols-${Math.min(4, summaryCards.length)} gap-2.5 text-center">
           ${summaryCards.map(c => `
-            <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex flex-col items-center justify-center">
               <div class="text-[11px] font-bold text-slate-500 uppercase">${c.label}</div>
               <div class="text-base font-black text-slate-900 mt-0.5">${c.val}</div>
+              ${c.tier ? `<span class="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${c.tier.cls}">${c.tier.text}</span>` : ''}
             </div>
           `).join('')}
         </div>
@@ -957,13 +1806,13 @@
             else if (tl.includes('player')) tCls = 'bg-emerald-50 text-emerald-800 border-emerald-300';
             else if (tl.includes('mutual') || tl.includes('vest')) tCls = 'bg-purple-50 text-purple-800 border-purple-300';
             else if (tl.includes('arb')) tCls = 'bg-amber-100 text-amber-900 border-amber-300';
-            tags.push(`<span class="inline-block text-[11px] font-bold px-1.5 py-0.5 rounded border ${tCls}">${y.tag}</span>`);
+            tags.push(`<span class="inline-block text-[11px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${tCls}">${y.tag}</span>`);
           }
           if (y.opt_out) {
-            tags.push(`<span class="inline-block text-[11px] font-bold px-1.5 py-0.5 rounded border bg-rose-50 text-rose-800 border-rose-300">Opt-Out</span>`);
+            tags.push(`<span class="inline-block text-[11px] font-bold px-1.5 py-0.5 rounded border bg-rose-50 text-rose-800 border-rose-300 whitespace-nowrap">Opt-Out</span>`);
           }
           if (y.buyout) {
-            tags.push(`<span class="inline-block text-[11px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">Buyout: ${y.buyout}</span>`);
+            tags.push(`<span class="inline-block text-[11px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 whitespace-nowrap">Buyout: ${y.buyout}</span>`);
           }
           if (y.note) {
             tags.push(`<span class="text-[11px] text-slate-500">${y.note}</span>`);
@@ -971,12 +1820,12 @@
 
           return `
             <tr class="border-b border-slate-100 last:border-0 ${rowCls}">
-              <td class="py-2 px-3 text-left font-mono ${isCur ? 'text-blue-700 font-black' : 'text-slate-700'}">
-                ${y.year} ${isCur ? '<span class="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded ml-1">本季</span>' : ''}
+              <td class="py-2 px-2.5 sm:px-3 text-left font-mono whitespace-nowrap ${isCur ? 'text-blue-700 font-black' : 'text-slate-700'}">
+                ${y.year}${isCur ? ' <span class="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded whitespace-nowrap">本季</span>' : ''}
               </td>
-              <td class="py-2 px-3 text-right font-mono font-bold text-slate-900">${y.salary}</td>
-              <td class="py-2 px-3 text-right font-mono text-slate-500">${y.aav || '-'}</td>
-              <td class="py-2 px-3 text-left"><div class="flex flex-wrap items-center gap-1">${tags.length ? tags.join('') : '<span class="text-slate-300 text-xs">-</span>'}</div></td>
+              <td class="py-2 px-2.5 sm:px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">${y.salary}</td>
+              <td class="py-2 px-2.5 sm:px-3 text-right font-mono text-slate-500 whitespace-nowrap">${y.aav || '-'}</td>
+              <td class="py-2 px-2.5 sm:px-3 text-left"><div class="flex flex-wrap items-center gap-1">${tags.length ? tags.join('') : '<span class="text-slate-300 text-xs">-</span>'}</div></td>
             </tr>
           `;
         }).join('');
@@ -984,14 +1833,14 @@
         yearlyHtml = `
           <div>
             <div class="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">逐年薪資與選擇權明細</div>
-            <div class="border border-slate-200 rounded-lg overflow-hidden">
+            <div class="border border-slate-200 rounded-lg overflow-x-auto">
               <table class="w-full text-xs border-collapse">
                 <thead class="bg-slate-100 text-slate-600 uppercase border-b border-slate-200">
                   <tr>
-                    <th class="py-2 px-3 text-left">球季</th>
-                    <th class="py-2 px-3 text-right">薪資</th>
-                    <th class="py-2 px-3 text-right">AAV (豪華稅)</th>
-                    <th class="py-2 px-3 text-left">條款 / 選擇權</th>
+                    <th class="py-2 px-2.5 sm:px-3 text-left whitespace-nowrap">球季</th>
+                    <th class="py-2 px-2.5 sm:px-3 text-right whitespace-nowrap">薪資</th>
+                    <th class="py-2 px-2.5 sm:px-3 text-right whitespace-nowrap">AAV (豪華稅)</th>
+                    <th class="py-2 px-2.5 sm:px-3 text-left whitespace-nowrap">條款 / 選擇權</th>
                   </tr>
                 </thead>
                 <tbody>${rows}</tbody>
@@ -1135,33 +1984,33 @@
         `;
       }).join('');
 
-      const usageCols = pitches.map(p => `<td class="px-1.5 py-1.5 text-center font-semibold text-slate-800 text-xs sm:text-sm">${p.usage_str}</td>`).join('');
-      const mphCols = pitches.map(p => `<td class="px-1.5 py-1.5 text-center font-bold text-slate-900 text-xs sm:text-sm">${p.mph !== null && p.mph !== undefined ? p.mph.toFixed(1) : '-'}</td>`).join('');
-      const avgCols = pitches.map(p => `<td class="px-1.5 py-1.5 text-center font-medium text-slate-500 text-xs sm:text-sm">${p.lg_avg_mph !== null && p.lg_avg_mph !== undefined ? p.lg_avg_mph.toFixed(1) : '-'}</td>`).join('');
+      const usageCols = pitches.map(p => `<td class="px-1.5 py-1.5 text-center font-semibold text-slate-800 text-xs sm:text-sm whitespace-nowrap">${p.usage_str}</td>`).join('');
+      const mphCols = pitches.map(p => `<td class="px-1.5 py-1.5 text-center font-bold text-slate-900 text-xs sm:text-sm whitespace-nowrap">${p.mph !== null && p.mph !== undefined ? p.mph.toFixed(1) : '-'}</td>`).join('');
+      const avgCols = pitches.map(p => `<td class="px-1.5 py-1.5 text-center font-medium text-slate-500 text-xs sm:text-sm whitespace-nowrap">${p.lg_avg_mph !== null && p.lg_avg_mph !== undefined ? p.lg_avg_mph.toFixed(1) : '-'}</td>`).join('');
 
       overviewEl.innerHTML = `
         <table class="w-full border-collapse">
           <thead>
             <tr>
-              <th class="w-20"></th>
+              <th class="w-20 sticky left-0 bg-white z-10"></th>
               ${headerCols}
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td></td>
+              <td class="sticky left-0 bg-white z-10"></td>
               ${pillCols}
             </tr>
             <tr>
-              <td class="pr-3 py-1.5 text-right text-xs font-extrabold tracking-wider text-cyan-700 whitespace-nowrap">USAGE</td>
+              <td class="sticky left-0 bg-white z-10 pr-2.5 sm:pr-3 py-1.5 text-right text-[11px] sm:text-xs font-extrabold tracking-wider text-cyan-700 whitespace-nowrap">USAGE</td>
               ${usageCols}
             </tr>
             <tr>
-              <td class="pr-3 py-1.5 text-right text-xs font-extrabold tracking-wider text-cyan-700 whitespace-nowrap">MPH</td>
+              <td class="sticky left-0 bg-white z-10 pr-2.5 sm:pr-3 py-1.5 text-right text-[11px] sm:text-xs font-extrabold tracking-wider text-cyan-700 whitespace-nowrap">MPH</td>
               ${mphCols}
             </tr>
             <tr>
-              <td class="pr-3 py-1.5 text-right text-xs font-bold italic tracking-wider text-cyan-600 whitespace-nowrap">${arsenal.avg_label || 'RHP AVG'}</td>
+              <td class="sticky left-0 bg-white z-10 pr-2.5 sm:pr-3 py-1.5 text-right text-[11px] sm:text-xs font-bold italic tracking-wider text-cyan-600 whitespace-nowrap">${arsenal.avg_label || 'RHP AVG'}</td>
               ${avgCols}
             </tr>
           </tbody>
@@ -1180,39 +2029,39 @@
 
         return `
           <div class="grid grid-cols-12 items-center py-1.5 gap-1 text-sm">
-            <div class="col-span-4 flex items-center gap-1.5 pr-1.5 border-r-2 border-cyan-600/30">
-              <span class="w-8 text-left font-bold text-slate-800 text-xs shrink-0">${p.lhh_usage_str}</span>
+            <div class="col-span-3 sm:col-span-4 flex items-center gap-1 sm:gap-1.5 pr-1 sm:pr-1.5 border-r-2 border-cyan-600/30">
+              <span class="w-7 sm:w-8 text-left font-bold text-slate-800 text-[11px] sm:text-xs shrink-0">${p.lhh_usage_str}</span>
               <div class="flex-1 flex justify-end">
-                <div class="h-4 rounded-l-full border border-slate-500/40"
-                     style="width: ${p.lhh_usage > 0 ? Math.max(6, lPct) : 0}%; background-color: ${p.color};"></div>
+                <div class="h-3.5 sm:h-4 rounded-l-full border border-slate-500/40"
+                     style="width: ${p.lhh_usage > 0 ? Math.max(8, lPct) : 0}%; background-color: ${p.color};"></div>
               </div>
             </div>
 
-            <div class="col-span-4 flex items-center justify-between px-1 gap-1">
-              <div class="w-7 text-right font-mono text-xs">${formatRvBadge(p.lhh_rv)}</div>
-              <div class="flex-1 text-center text-[11px] font-bold py-0.5 px-1 rounded border border-slate-500/40 truncate ${badgeTextCls}"
+            <div class="col-span-6 sm:col-span-4 flex items-center justify-between px-0.5 sm:px-1 gap-1">
+              <div class="w-6 sm:w-7 text-right font-mono text-[11px] sm:text-xs shrink-0">${formatRvBadge(p.lhh_rv)}</div>
+              <div class="flex-1 text-center text-[11px] font-bold py-0.5 px-1.5 rounded border border-slate-500/40 whitespace-nowrap truncate ${badgeTextCls}"
                    style="background-color: ${p.color};" title="${p.name}">
                 ${p.name}
               </div>
-              <div class="w-7 text-left font-mono text-xs">${formatRvBadge(p.rhh_rv)}</div>
+              <div class="w-6 sm:w-7 text-left font-mono text-[11px] sm:text-xs shrink-0">${formatRvBadge(p.rhh_rv)}</div>
             </div>
 
-            <div class="col-span-4 flex items-center gap-1.5 pl-1.5 border-l-2 border-cyan-600/30">
+            <div class="col-span-3 sm:col-span-4 flex items-center gap-1 sm:gap-1.5 pl-1 sm:pl-1.5 border-l-2 border-cyan-600/30">
               <div class="flex-1 flex justify-start">
-                <div class="h-4 rounded-r-full border border-slate-500/40"
-                     style="width: ${p.rhh_usage > 0 ? Math.max(6, rPct) : 0}%; background-color: ${p.color};"></div>
+                <div class="h-3.5 sm:h-4 rounded-r-full border border-slate-500/40"
+                     style="width: ${p.rhh_usage > 0 ? Math.max(8, rPct) : 0}%; background-color: ${p.color};"></div>
               </div>
-              <span class="w-8 text-right font-bold text-slate-800 text-xs shrink-0">${p.rhh_usage_str}</span>
+              <span class="w-7 sm:w-8 text-right font-bold text-slate-800 text-[11px] sm:text-xs shrink-0">${p.rhh_usage_str}</span>
             </div>
           </div>
         `;
       }).join('');
 
       splitsEl.innerHTML = `
-        <div class="grid grid-cols-12 items-center pb-2 mb-1 border-b-2 border-cyan-600/40 text-xs font-extrabold text-slate-800">
-          <div class="col-span-4 text-center">Usage vs. LHH</div>
-          <div class="col-span-4 text-center">Pitch Run Value</div>
-          <div class="col-span-4 text-center">Usage vs. RHH</div>
+        <div class="grid grid-cols-12 items-center pb-2 mb-1 border-b-2 border-cyan-600/40 text-[11px] sm:text-xs font-extrabold text-slate-800">
+          <div class="col-span-3 sm:col-span-4 text-center whitespace-nowrap">vs. LHH</div>
+          <div class="col-span-6 sm:col-span-4 text-center whitespace-nowrap">Pitch Run Value</div>
+          <div class="col-span-3 sm:col-span-4 text-center whitespace-nowrap">vs. RHH</div>
         </div>
         <div class="space-y-0.5">${splitRows}</div>
       `;
@@ -1227,18 +2076,30 @@
 
         if (db.years && db.years.length > 0) {
           const yearOpts = db.years.map(y => `<option value="${y}">${y} 球季</option>`).join('');
+          const yrsAsc = [...db.years].map(Number).sort((a, b) => a - b);
+          const plainYearOpts = yrsAsc.map(y => `<option value="${y}">${y}</option>`).join('');
+
           yearSelect.innerHTML = yearOpts;
           document.getElementById('cmpYear1').innerHTML = yearOpts;
           document.getElementById('cmpYear2').innerHTML = yearOpts;
+          document.getElementById('scanTargetYear').innerHTML = yearOpts;
+          document.getElementById('scanPoolFrom').innerHTML = plainYearOpts;
+          document.getElementById('scanPoolTo').innerHTML = plainYearOpts;
 
           currentYear = String(db.default_year || db.years[0]);
           yearSelect.value = currentYear;
           cmpState[1].year = currentYear;
           cmpState[2].year = currentYear;
+          document.getElementById('scanTargetYear').value = currentYear;
 
-          const yrsAsc = [...db.years].map(Number).sort((a, b) => a - b);
-          simYearFrom = yrsAsc[0];
+          // 選手比對預設 2024–2026；Sleeper / Risk 掃描雷達預設 2015–2026
+          simYearFrom = yrsAsc.includes(2024) ? 2024 : yrsAsc[0];
           simYearTo = yrsAsc[yrsAsc.length - 1];
+
+          scanPoolFrom = yrsAsc.includes(2015) ? 2015 : yrsAsc[0];
+          scanPoolTo = yrsAsc[yrsAsc.length - 1];
+          document.getElementById('scanPoolFrom').value = String(scanPoolFrom);
+          document.getElementById('scanPoolTo').value = String(scanPoolTo);
         }
       } catch (err) {
         const banner = document.getElementById('statusBanner');
@@ -1249,27 +2110,39 @@
       const defaultId = db.players["660271"] ? "660271" : Object.keys(db.players)[0];
       selectPlayer(defaultId);
       initCompareDefaults();
+      syncScannerButtons();
+      resetScannerQualDefault();
     }
 
-    function switchAppView(view) {
+    function switchAppView(view, skipAutoSync = false) {
       appView = view;
       const singleSec = document.getElementById('singleViewSection');
       const compareSec = document.getElementById('compareViewSection');
+      const scannerSec = document.getElementById('scannerViewSection');
       const singleCtrl = document.getElementById('singleHeaderControls');
       const compareCtrl = document.getElementById('compareHeaderControls');
-      const btnSingle = document.getElementById('navBtnSingle');
-      const btnCompare = document.getElementById('navBtnCompare');
 
+      const activeBtnCls = "px-2 sm:px-3 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition whitespace-nowrap";
+      const idleBtnCls = "px-2 sm:px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition whitespace-nowrap";
+
+      document.getElementById('navBtnSingle').className = view === 'single' ? activeBtnCls : idleBtnCls;
+      document.getElementById('navBtnCompare').className = view === 'compare' ? activeBtnCls : idleBtnCls;
+      document.getElementById('navBtnScanner').className = view === 'scanner' ? activeBtnCls : idleBtnCls;
+
+      singleSec.classList.toggle('hidden', view !== 'single');
+      compareSec.classList.toggle('hidden', view !== 'compare');
+      scannerSec.classList.toggle('hidden', view !== 'scanner');
+
+      singleCtrl.classList.toggle('hidden', view !== 'single');
       if (view === 'compare') {
-        singleSec.classList.add('hidden');
-        singleCtrl.classList.add('hidden');
-        compareSec.classList.remove('hidden');
         compareCtrl.classList.remove('hidden');
         compareCtrl.classList.add('flex');
+      } else {
+        compareCtrl.classList.add('hidden');
+        compareCtrl.classList.remove('flex');
+      }
 
-        btnCompare.className = "px-3 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition";
-        btnSingle.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition";
-
+      if (view === 'compare' && !skipAutoSync) {
         if (currentPlayer) {
           compareRole = activeRoleMode;
           cmpState[1].id = String(currentPlayer.mlbam_id);
@@ -1279,15 +2152,12 @@
           ensureValidComparePlayers();
         }
         refreshCompareAll();
-      } else {
-        compareSec.classList.add('hidden');
-        compareCtrl.classList.add('hidden');
-        compareCtrl.classList.remove('flex');
-        singleSec.classList.remove('hidden');
-        singleCtrl.classList.remove('hidden');
-
-        btnSingle.className = "px-3 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition";
-        btnCompare.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition";
+      } else if (view === 'scanner') {
+        syncScannerButtons();
+        if (scanQualVal === null || isNaN(scanQualVal)) {
+          resetScannerQualDefault();
+        }
+        runScanner();
       }
     }
 
@@ -1311,12 +2181,12 @@
       const bPit = document.getElementById('cmpRolePit');
       const badge = document.getElementById('cmpRoleBadge');
       if (compareRole === 'batter') {
-        bBat.className = "px-3 py-1 text-xs font-bold rounded-md bg-emerald-600 text-white transition";
-        bPit.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition";
+        bBat.className = "px-2.5 sm:px-3 py-1 text-xs font-bold rounded-md bg-emerald-600 text-white transition whitespace-nowrap";
+        bPit.className = "px-2.5 sm:px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition whitespace-nowrap";
         badge.textContent = "打者對決 (Batters)";
       } else {
-        bPit.className = "px-3 py-1 text-xs font-bold rounded-md bg-emerald-600 text-white transition";
-        bBat.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition";
+        bPit.className = "px-2.5 sm:px-3 py-1 text-xs font-bold rounded-md bg-emerald-600 text-white transition whitespace-nowrap";
+        bBat.className = "px-2.5 sm:px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition whitespace-nowrap";
         badge.textContent = "投手對決 (Pitchers)";
       }
     }
@@ -1379,17 +2249,28 @@
         }
         const matches = Object.values(db.players)
           .filter(p => p.name.toLowerCase().includes(q) && playerHasRoleAnyYear(p, compareRole))
+          .sort((a, b) => getPlayerSearchInfo(b).latestYr - getPlayerSearchInfo(a).latestYr)
           .slice(0, 12);
 
         if (matches.length === 0) {
           resEl.innerHTML = `<div class="px-4 py-2.5 text-xs text-slate-400">找不到符合該身分 (${compareRole === 'batter' ? '打者' : '投手'}) 的球員</div>`;
         } else {
-          resEl.innerHTML = matches.map(p => `
-            <button onclick="selectComparePlayer(${slot}, '${p.mlbam_id}')" class="w-full text-left px-3.5 py-2 hover:bg-blue-50 flex items-center justify-between border-b border-slate-100 last:border-0">
-              <span class="font-bold text-sm text-slate-800">${p.name}</span>
-              <span class="text-[11px] text-slate-400">ID: ${p.mlbam_id}</span>
-            </button>
-          `).join('');
+          resEl.innerHTML = matches.map(p => {
+            const info = getPlayerSearchInfo(p);
+            const teamTag = info.team
+              ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">${info.team}</span>`
+              : '';
+            return `
+              <button onclick="selectComparePlayer(${slot}, '${p.mlbam_id}')" class="w-full text-left px-3.5 py-2 hover:bg-blue-50 flex items-center justify-between gap-2 border-b border-slate-100 last:border-0">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="font-bold text-sm text-slate-800 truncate">${p.name}</span>
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${info.roleCls}">${info.roleLabel}</span>
+                  ${teamTag}
+                </div>
+                <span class="text-[11px] font-mono text-slate-400 whitespace-nowrap shrink-0">${info.yrText || `ID: ${p.mlbam_id}`}</span>
+              </button>
+            `;
+          }).join('');
         }
         resEl.classList.remove('hidden');
       });
@@ -1471,18 +2352,18 @@
       const hasPr = pr !== null && pr !== undefined;
       const pct = Math.max(0, Math.min(100, hasPr ? pr : (estPr ?? 50)));
       const color = getPrColor(pct);
-      const winValCls = isWinner ? 'text-slate-950 font-black bg-amber-100/90 border border-amber-300 px-1.5 py-0.5 rounded shadow-2xs' : 'text-slate-700 font-bold';
+      const winValCls = isWinner ? 'text-slate-950 font-black bg-amber-100/90 border border-amber-300 px-1 sm:px-1.5 py-0.5 rounded shadow-2xs' : 'text-slate-700 font-bold';
 
       if (hasPr) {
         return `
-          <div class="flex items-center gap-2.5 w-full">
-            <div class="w-16 text-left font-mono text-xs sm:text-sm shrink-0 ${winValCls}">${valStr}</div>
+          <div class="flex items-center gap-1.5 sm:gap-2.5 w-full">
+            <div class="w-12 sm:w-16 text-left font-mono text-xs sm:text-sm shrink-0 ${winValCls}">${valStr}</div>
             <div class="flex-1 relative h-5 flex items-center">
               <div class="w-full h-2.5 rounded-full savant-bar-bg-rev relative">
                 <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400"></span>
               </div>
               <div class="absolute right-0 h-2.5 rounded-full" style="width: ${pct}%; background-color: ${color}; opacity: 0.85;"></div>
-              <div class="absolute w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center shadow border-2 border-white transform translate-x-1/2"
+              <div class="absolute w-5 h-5 sm:w-6 sm:h-6 rounded-full text-white text-[10px] sm:text-[11px] font-bold flex items-center justify-center shadow border-2 border-white transform translate-x-1/2"
                    style="right: calc(${pct}% + ${12 - pct * 0.24}px); background-color: ${color};">
                 ${pr}
               </div>
@@ -1497,8 +2378,8 @@
 
       const hatchCls = pct >= 50 ? 'hatched-bar-red' : 'hatched-bar-blue';
       return `
-        <div class="flex items-center gap-2.5 w-full opacity-85">
-          <div class="w-16 text-left font-mono text-xs sm:text-sm shrink-0 ${winValCls}">${valStr}</div>
+        <div class="flex items-center gap-1.5 sm:gap-2.5 w-full opacity-85">
+          <div class="w-12 sm:w-16 text-left font-mono text-xs sm:text-sm shrink-0 ${winValCls}">${valStr}</div>
           <div class="flex-1 relative h-5 flex items-center">
             <div class="w-full h-2.5 rounded-sm bg-slate-100 relative overflow-hidden">
               <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-300"></span>
@@ -1513,22 +2394,22 @@
       const hasPr = pr !== null && pr !== undefined;
       const pct = Math.max(0, Math.min(100, hasPr ? pr : (estPr ?? 50)));
       const color = getPrColor(pct);
-      const winValCls = isWinner ? 'text-slate-950 font-black bg-amber-100/90 border border-amber-300 px-1.5 py-0.5 rounded shadow-2xs' : 'text-slate-700 font-bold';
+      const winValCls = isWinner ? 'text-slate-950 font-black bg-amber-100/90 border border-amber-300 px-1 sm:px-1.5 py-0.5 rounded shadow-2xs' : 'text-slate-700 font-bold';
 
       if (hasPr) {
         return `
-          <div class="flex items-center gap-2.5 w-full">
+          <div class="flex items-center gap-1.5 sm:gap-2.5 w-full">
             <div class="flex-1 relative h-5 flex items-center">
               <div class="w-full h-2.5 rounded-full savant-bar-bg relative">
                 <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400"></span>
               </div>
               <div class="absolute left-0 h-2.5 rounded-full" style="width: ${pct}%; background-color: ${color}; opacity: 0.85;"></div>
-              <div class="absolute w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center shadow border-2 border-white transform -translate-x-1/2"
+              <div class="absolute w-5 h-5 sm:w-6 sm:h-6 rounded-full text-white text-[10px] sm:text-[11px] font-bold flex items-center justify-center shadow border-2 border-white transform -translate-x-1/2"
                    style="left: calc(${pct}% + ${12 - pct * 0.24}px); background-color: ${color};">
                 ${pr}
               </div>
             </div>
-            <div class="w-16 text-right font-mono text-xs sm:text-sm shrink-0 ${winValCls}">${valStr}</div>
+            <div class="w-12 sm:w-16 text-right font-mono text-xs sm:text-sm shrink-0 ${winValCls}">${valStr}</div>
           </div>
         `;
       }
@@ -1539,14 +2420,14 @@
 
       const hatchCls = pct >= 50 ? 'hatched-bar-red' : 'hatched-bar-blue';
       return `
-        <div class="flex items-center gap-2.5 w-full opacity-85">
+        <div class="flex items-center gap-1.5 sm:gap-2.5 w-full opacity-85">
           <div class="flex-1 relative h-5 flex items-center">
             <div class="w-full h-2.5 rounded-sm bg-slate-100 relative overflow-hidden">
               <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-300"></span>
               <div class="h-full ${hatchCls}" style="width: ${pct}%;"></div>
             </div>
           </div>
-          <div class="w-16 text-right font-mono text-xs sm:text-sm shrink-0 ${winValCls}">${valStr}</div>
+          <div class="w-12 sm:w-16 text-right font-mono text-xs sm:text-sm shrink-0 ${winValCls}">${valStr}</div>
         </div>
       `;
     }
@@ -1564,14 +2445,14 @@
 
       if (side === 'left') {
         return `
-          <div class="flex items-center gap-2.5 w-full">
-            <div class="w-24 text-left shrink-0">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5 w-full">
+            <div class="sm:w-24 text-left shrink-0">
               <div class="font-mono text-xs sm:text-sm font-bold text-slate-700 leading-tight">${valStr || '-'}</div>
               ${diffText ? `<div class="text-[10px] text-slate-400 font-medium leading-tight">${diffText}</div>` : ''}
             </div>
-            <div class="flex-1 flex items-center justify-end gap-2">
+            <div class="flex-1 flex items-center justify-start sm:justify-end gap-2">
               ${tagHtml}
-              <div class="flex-1 max-w-[140px] relative h-2.5 rounded-full bg-slate-200">
+              <div class="hidden sm:block flex-1 max-w-[140px] relative h-2.5 rounded-full bg-slate-200">
                 <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400"></span>
                 <div class="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-600 border-2 border-white shadow-xs transform translate-x-1/2"
                      style="right: ${pct}%;" title="PR ${pr ?? '-'}"></div>
@@ -1581,16 +2462,16 @@
         `;
       }
       return `
-        <div class="flex items-center gap-2.5 w-full">
-          <div class="flex-1 flex items-center justify-start gap-2">
-            <div class="flex-1 max-w-[140px] relative h-2.5 rounded-full bg-slate-200">
+        <div class="flex flex-col-reverse sm:flex-row sm:items-center gap-1.5 sm:gap-2.5 w-full">
+          <div class="flex-1 flex items-center justify-end sm:justify-start gap-2">
+            <div class="hidden sm:block flex-1 max-w-[140px] relative h-2.5 rounded-full bg-slate-200">
               <span class="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400"></span>
               <div class="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-600 border-2 border-white shadow-xs transform -translate-x-1/2"
                    style="left: ${pct}%;" title="PR ${pr ?? '-'}"></div>
             </div>
             ${tagHtml}
           </div>
-          <div class="w-24 text-right shrink-0">
+          <div class="sm:w-24 text-right shrink-0">
             <div class="font-mono text-xs sm:text-sm font-bold text-slate-700 leading-tight">${valStr || '-'}</div>
             ${diffText ? `<div class="text-[10px] text-slate-400 font-medium leading-tight">${diffText}</div>` : ''}
           </div>
@@ -1634,10 +2515,10 @@
         const win = decideWinner(v1, pr1, v2, pr2, lowerBetterFg.has(k));
 
         return `
-          <div class="grid grid-cols-12 items-center py-2.5 gap-2 hover:bg-slate-50/80 transition">
-            <div class="col-span-5">${buildLeftCellHtml(v1, pr1, pr1, win === 1)}</div>
-            <div class="col-span-2 text-center font-extrabold text-xs sm:text-sm text-slate-800 bg-slate-100 py-1 px-1.5 rounded border border-slate-200/80 truncate" title="${k}">${k}</div>
-            <div class="col-span-5">${buildRightCellHtml(v2, pr2, pr2, win === 2)}</div>
+          <div class="grid grid-cols-12 items-center py-2.5 gap-y-1.5 gap-x-2 hover:bg-slate-50/80 transition">
+            <div class="col-span-6 md:col-span-5">${buildLeftCellHtml(v1, pr1, pr1, win === 1)}</div>
+            <div class="col-span-12 md:col-span-2 order-first md:order-none text-center font-extrabold text-xs sm:text-sm text-slate-800 bg-slate-100 py-0.5 md:py-1 px-1.5 rounded border border-slate-200/80 truncate" title="${k}">${k}</div>
+            <div class="col-span-6 md:col-span-5">${buildRightCellHtml(v2, pr2, pr2, win === 2)}</div>
           </div>
         `;
       }).join('');
@@ -1668,10 +2549,10 @@
         const win = decideWinner(d1.val, d1.pr, d2.val, d2.pr, lowerBetterSavant);
 
         return `
-          <div class="grid grid-cols-12 items-center py-2.5 gap-2 hover:bg-slate-50/80 transition">
-            <div class="col-span-5">${buildLeftCellHtml(d1.val, d1.pr, d1.est_pr, win === 1)}</div>
-            <div class="col-span-2 text-center font-bold text-[11px] sm:text-xs text-slate-700 bg-slate-100 py-1 px-1.5 rounded border border-slate-200/80 truncate" title="${label}">${label}</div>
-            <div class="col-span-5">${buildRightCellHtml(d2.val, d2.pr, d2.est_pr, win === 2)}</div>
+          <div class="grid grid-cols-12 items-center py-2.5 gap-y-1.5 gap-x-2 hover:bg-slate-50/80 transition">
+            <div class="col-span-6 md:col-span-5">${buildLeftCellHtml(d1.val, d1.pr, d1.est_pr, win === 1)}</div>
+            <div class="col-span-12 md:col-span-2 order-first md:order-none text-center font-bold text-[11px] sm:text-xs text-slate-700 bg-slate-100 py-0.5 md:py-1 px-1.5 rounded border border-slate-200/80 truncate" title="${label}">${label}</div>
+            <div class="col-span-6 md:col-span-5">${buildRightCellHtml(d2.val, d2.pr, d2.est_pr, win === 2)}</div>
           </div>
         `;
       }).join('');
@@ -1690,10 +2571,10 @@
         const pr1 = m1.sim_pr?.[k] ?? null;
         const pr2 = m2.sim_pr?.[k] ?? null;
         return `
-          <div class="grid grid-cols-12 items-center py-2.5 gap-2 hover:bg-slate-50/80 transition">
-            <div class="col-span-5">${buildNeutralStyleCellHtml(k, v1, pr1, lgAvg1[k], 'left')}</div>
-            <div class="col-span-2 text-center font-bold text-[11px] sm:text-xs text-slate-600 bg-slate-100 py-1 px-1.5 rounded border border-slate-200/80 truncate" title="${k}">${k}</div>
-            <div class="col-span-5">${buildNeutralStyleCellHtml(k, v2, pr2, lgAvg2[k], 'right')}</div>
+          <div class="grid grid-cols-12 items-center py-2.5 gap-y-1.5 gap-x-2 hover:bg-slate-50/80 transition">
+            <div class="col-span-6 md:col-span-5">${buildNeutralStyleCellHtml(k, v1, pr1, lgAvg1[k], 'left')}</div>
+            <div class="col-span-12 md:col-span-2 order-first md:order-none text-center font-bold text-[11px] sm:text-xs text-slate-600 bg-slate-100 py-0.5 md:py-1 px-1.5 rounded border border-slate-200/80 truncate" title="${k}">${k}</div>
+            <div class="col-span-6 md:col-span-5">${buildNeutralStyleCellHtml(k, v2, pr2, lgAvg2[k], 'right')}</div>
           </div>
         `;
       }).join('');
@@ -1719,6 +2600,27 @@
     const searchInput = document.getElementById('searchInput');
     const searchResults = document.getElementById('searchResults');
 
+    function getPlayerSearchInfo(p) {
+      const yrs = Object.keys(p.seasons || {}).map(Number).sort((a, b) => a - b);
+      const latestYr = yrs.length > 0 ? yrs[yrs.length - 1] : 0;
+      const yrText = yrs.length === 0
+        ? ''
+        : (yrs.length === 1 ? `${yrs[0]}` : `${yrs[0]}–${latestYr}`);
+
+      const sObj = latestYr ? p.seasons[String(latestYr)] : null;
+      let roleLabel = '打者';
+      let roleCls = 'bg-blue-50 text-blue-700 border-blue-200';
+      if (sObj?.has_bat && sObj?.has_pit) {
+        roleLabel = '二刀流';
+        roleCls = 'bg-purple-50 text-purple-700 border-purple-200';
+      } else if (sObj?.has_pit || p.role === 'pitcher') {
+        roleLabel = sObj?.pitching?.sub_role || '投手';
+        roleCls = 'bg-amber-50 text-amber-800 border-amber-200';
+      }
+      const team = (sObj?.team || p.team || '');
+      return { latestYr, yrText, roleLabel, roleCls, team };
+    }
+
     searchInput.addEventListener('input', (e) => {
       const q = e.target.value.trim().toLowerCase();
       if (!q) {
@@ -1727,19 +2629,28 @@
       }
       const matches = Object.values(db.players)
         .filter(p => p.name.toLowerCase().includes(q))
+        .sort((a, b) => getPlayerSearchInfo(b).latestYr - getPlayerSearchInfo(a).latestYr)
         .slice(0, 12);
 
       if (matches.length === 0) {
         searchResults.innerHTML = `<div class="px-4 py-3 text-sm text-slate-400">找不到符合的球員</div>`;
       } else {
-        searchResults.innerHTML = matches.map(p => `
-          <button onclick="selectPlayer('${p.mlbam_id}')" class="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center justify-between border-b border-slate-100 last:border-0">
-            <div>
-              <span class="font-semibold text-slate-800">${p.name}</span>
-            </div>
-            <span class="text-xs text-slate-400">MLB ID: ${p.mlbam_id}</span>
-          </button>
-        `).join('');
+        searchResults.innerHTML = matches.map(p => {
+          const info = getPlayerSearchInfo(p);
+          const teamTag = info.team
+            ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">${info.team}</span>`
+            : '';
+          return `
+            <button onclick="selectPlayer('${p.mlbam_id}')" class="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center justify-between gap-2 border-b border-slate-100 last:border-0">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="font-semibold text-slate-800 truncate">${p.name}</span>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${info.roleCls}">${info.roleLabel}</span>
+                ${teamTag}
+              </div>
+              <span class="text-xs font-mono text-slate-400 whitespace-nowrap shrink-0">${info.yrText || `ID: ${p.mlbam_id}`}</span>
+            </button>
+          `;
+        }).join('');
       }
       searchResults.classList.remove('hidden');
     });
@@ -1801,7 +2712,7 @@
       const fwarTier = getFwarTier(fg.fWAR, fgPr.fWAR, activeRoleMode, pitcherSubType);
       const fwarBadgeEl = document.getElementById('fwarTierBadge');
       fwarBadgeEl.textContent = fwarTier.text;
-      fwarBadgeEl.className = `inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full ${fwarTier.cls}`;
+      fwarBadgeEl.className = `inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap ${fwarTier.cls}`;
     }
 
     function applyLiveFgStatsToPlayer(p, yr, role, liveStats) {
@@ -1830,7 +2741,7 @@
       }
     }
 
-    async function selectPlayer(mlbamId, targetYear = null) {
+    async function selectPlayer(mlbamId, targetYear = null, targetRole = null) {
       searchResults.classList.add('hidden');
       const p = db.players[mlbamId];
       if (!p) return;
@@ -1851,7 +2762,7 @@
       }
 
       const sObj = p.seasons?.[currentYear];
-      activeRoleMode = sObj?.role || p.role || 'batter';
+      activeRoleMode = targetRole || sObj?.role || p.role || 'batter';
 
       document.getElementById('playerName').textContent = p.name;
       document.getElementById('playerAvatar').src = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${p.mlbam_id}/headshot/67/current`;
@@ -1867,10 +2778,10 @@
       const linksHtml = [
         { name: 'Baseball Savant', url: `https://baseballsavant.mlb.com/savant-player/${p.mlbam_id}`, color: 'bg-red-600 hover:bg-red-700' },
         { id: 'fgExternalLink', name: 'FanGraphs', url: initialFgUrl, color: 'bg-emerald-600 hover:bg-emerald-700' },
-        p.bbref_id ? { name: 'Baseball-Reference (查 bWAR)', url: `https://www.baseball-reference.com/players/${p.bbref_id[0]}/${p.bbref_id}.shtml`, color: 'bg-amber-600 hover:bg-amber-700' } : null,
+        p.bbref_id ? { name: 'Baseball-Reference', url: `https://www.baseball-reference.com/players/${p.bbref_id[0]}/${p.bbref_id}.shtml`, color: 'bg-amber-600 hover:bg-amber-700' } : null,
         { name: 'MLB.com', url: `https://www.mlb.com/player/${p.mlbam_id}`, color: 'bg-blue-600 hover:bg-blue-700' }
       ].filter(Boolean).map(l => `
-        <a ${l.id ? `id="${l.id}"` : ''} href="${l.url}" target="_blank" class="${l.color} text-white text-xs font-semibold px-3 py-1.5 rounded shadow-sm transition">
+        <a ${l.id ? `id="${l.id}"` : ''} href="${l.url}" target="_blank" class="${l.color} text-white text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded shadow-sm transition whitespace-nowrap">
           ${l.name} ↗
         </a>
       `).join('');
@@ -1958,7 +2869,7 @@
       const lgAvgMap = getLeagueStyleAvg(currentYear, role);
 
       grid.className = role === 'batter'
-        ? 'grid grid-cols-3 gap-2.5 text-center'
+        ? 'grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-center'
         : 'grid grid-cols-2 gap-2.5 text-center';
 
       grid.innerHTML = keys.map(k => {
@@ -1971,7 +2882,7 @@
             <div class="text-xs text-slate-500 font-bold">${k}</div>
             <div class="text-lg font-black text-slate-800 leading-tight">${val}</div>
             ${tag
-              ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded border ${tag.cls}">${tag.text} · PR ${pr}</span>`
+              ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${tag.cls}">${tag.text} · PR ${pr}</span>`
               : `<span class="text-[10px] text-slate-400">-</span>`
             }
             ${diffText
@@ -1984,11 +2895,30 @@
       sec.classList.remove('hidden');
     }
 
+    function syncSplitTabLabels(role) {
+      const isPit = role === 'pitcher';
+      const vlBtn = document.querySelector('#splitTabs button[data-split="vl"]');
+      const vrBtn = document.querySelector('#splitTabs button[data-split="vr"]');
+      if (vlBtn) {
+        vlBtn.textContent = isPit ? '對左打' : '對左投';
+        vlBtn.dataset.title = isPit ? '對左打 (vs LHH)' : '對左投 (vs LHP)';
+      }
+      if (vrBtn) {
+        vrBtn.textContent = isPit ? '對右打' : '對右投';
+        vrBtn.dataset.title = isPit ? '對右打 (vs RHH)' : '對右投 (vs RHP)';
+      }
+      const activeBtn = document.querySelector(`#splitTabs button[data-split="${currentSplit}"]`);
+      if (activeBtn) {
+        document.getElementById('topSplitTitle').textContent = activeBtn.dataset.title;
+      }
+    }
+
     async function renderCurrentPlayerForYear() {
       const p = currentPlayer;
       if (!p) return;
 
       document.getElementById('topStatYearLabel').textContent = currentYear;
+      syncSplitTabLabels(activeRoleMode);
       document.getElementById('savantYearBadge').textContent = `${currentYear} Season`;
       document.getElementById('fgYearTag').textContent = `${currentYear} Season`;
 
@@ -2004,11 +2934,11 @@
       if (seasonObj?.has_bat && seasonObj?.has_pit) {
         switchBox.classList.remove('hidden');
         if (activeRoleMode === 'batter') {
-          btnBat.className = "px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition";
-          btnPit.className = "px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition";
+          btnBat.className = "px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition whitespace-nowrap";
+          btnPit.className = "px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition whitespace-nowrap";
         } else {
-          btnPit.className = "px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition";
-          btnBat.className = "px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition";
+          btnPit.className = "px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 text-white transition whitespace-nowrap";
+          btnBat.className = "px-2.5 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition whitespace-nowrap";
         }
       } else {
         switchBox.classList.add('hidden');
@@ -2033,13 +2963,13 @@
         secVal.textContent = fg['ERA+'] ?? 'N/A';
         const b = getPrBadgeStyle(fgPr['ERA+']);
         secBadge.textContent = b ? b.label : '100 為聯盟平均';
-        secBadge.className = `inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${b ? b.cls : 'bg-slate-100 text-slate-600 border-slate-200'}`;
+        secBadge.className = `inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${b ? b.cls : 'bg-slate-100 text-slate-600 border-slate-200'}`;
       } else {
         secTitle.textContent = 'Standard OPS+';
         secVal.textContent = fg['OPS+'] ?? 'N/A';
         const b = getPrBadgeStyle(fgPr['OPS+']);
         secBadge.textContent = b ? b.label : '100 為聯盟平均';
-        secBadge.className = `inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${b ? b.cls : 'bg-slate-100 text-slate-600 border-slate-200'}`;
+        secBadge.className = `inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${b ? b.cls : 'bg-slate-100 text-slate-600 border-slate-200'}`;
       }
 
       renderSavantBars(modeData.savant_pr, activeRoleMode);
@@ -2112,7 +3042,7 @@
 
       if (currentSeasonTeams.length === 1) {
         box.innerHTML = `
-          <span class="px-2 py-0.5 rounded bg-slate-800 border border-emerald-500/50 text-emerald-300 font-extrabold text-[11px] tracking-normal">
+          <span class="px-2 py-0.5 rounded bg-slate-800 border border-emerald-500/50 text-emerald-300 font-extrabold text-[11px] tracking-normal whitespace-nowrap">
             賽時隊伍：${currentSeasonTeams[0].abbr}
           </span>
         `;
@@ -2129,7 +3059,7 @@
               ? 'bg-emerald-600 text-white shadow-xs'
               : 'text-slate-300 hover:text-white hover:bg-slate-700';
             return `
-              <button onclick="selectSeasonTeam('${opt.abbr}')" class="px-2 py-0.5 rounded text-[11px] font-extrabold tracking-normal transition ${cls}">
+              <button onclick="selectSeasonTeam('${opt.abbr}')" class="px-2 py-0.5 rounded text-[11px] font-extrabold tracking-normal transition whitespace-nowrap ${cls}">
                 ${opt.label}
               </button>
             `;
@@ -2309,7 +3239,7 @@
         }
         const st = targetSplit?.stat;
         if (!st) {
-          grid.innerHTML = `<div class="col-span-10 text-xs text-slate-400 py-2">此分項條件下 ${seasonYear} 球季無數據</div>`;
+          grid.innerHTML = `<div class="col-span-full text-xs text-slate-400 py-2">此分項條件下 ${seasonYear} 球季無數據</div>`;
           return;
         }
 
@@ -2335,18 +3265,23 @@
           { k: 'BB', v: st.baseOnBalls },
           { k: 'SO', v: st.strikeOuts, hi: true },
           { k: 'WHIP', v: st.whip, hi: true },
+          { k: 'AVG', v: st.avg },
         ];
 
+        grid.className = group === 'pitching'
+          ? 'grid grid-cols-4 sm:grid-cols-11 gap-1.5 sm:gap-2 text-center'
+          : 'grid grid-cols-5 sm:grid-cols-10 gap-1.5 sm:gap-2 text-center';
+
         grid.innerHTML = items.map(item => `
-          <div class="bg-slate-800/80 rounded px-2 py-1.5 border border-slate-700/70">
+          <div class="bg-slate-800/80 rounded px-1.5 sm:px-2 py-1.5 border border-slate-700/70">
             <div class="text-[10px] font-bold text-slate-400 uppercase">${item.k}</div>
-            <div class="text-sm sm:text-base font-extrabold ${item.hi ? 'text-amber-400' : 'text-white'}">${item.v ?? '-'}</div>
+            <div class="text-xs sm:text-base font-extrabold whitespace-nowrap ${item.hi ? 'text-amber-400' : 'text-white'}">${item.v ?? '-'}</div>
           </div>
         `).join('');
       } catch (_) {
         monthWrapper.classList.add('hidden');
         grid.classList.remove('hidden');
-        grid.innerHTML = `<div class="col-span-10 text-xs text-slate-400 py-2">MLB 官方數據載入失敗</div>`;
+        grid.innerHTML = `<div class="col-span-full text-xs text-slate-400 py-2">MLB 官方數據載入失敗</div>`;
       }
     }
 
@@ -2364,60 +3299,60 @@
 
       if (group === 'hitting') {
         thead.innerHTML = `
-          <th class="py-2 px-2.5 text-left">月份</th>
-          <th class="py-2 px-2">G</th><th class="py-2 px-2">PA</th><th class="py-2 px-2">AB</th>
-          <th class="py-2 px-2">H</th><th class="py-2 px-2">HR</th><th class="py-2 px-2">RBI</th>
-          <th class="py-2 px-2">BB</th><th class="py-2 px-2">SO</th><th class="py-2 px-2">SB</th>
-          <th class="py-2 px-2">AVG</th><th class="py-2 px-2">OBP</th><th class="py-2 px-2">SLG</th>
-          <th class="py-2 px-2.5 text-amber-400 font-bold">OPS</th>
+          <th class="py-2 px-2.5 text-left whitespace-nowrap">月份</th>
+          <th class="py-2 px-2 whitespace-nowrap">G</th><th class="py-2 px-2 whitespace-nowrap">PA</th><th class="py-2 px-2 whitespace-nowrap">AB</th>
+          <th class="py-2 px-2 whitespace-nowrap">H</th><th class="py-2 px-2 whitespace-nowrap">HR</th><th class="py-2 px-2 whitespace-nowrap">RBI</th>
+          <th class="py-2 px-2 whitespace-nowrap">BB</th><th class="py-2 px-2 whitespace-nowrap">SO</th><th class="py-2 px-2 whitespace-nowrap">SB</th>
+          <th class="py-2 px-2 whitespace-nowrap">AVG</th><th class="py-2 px-2 whitespace-nowrap">OBP</th><th class="py-2 px-2 whitespace-nowrap">SLG</th>
+          <th class="py-2 px-2.5 text-amber-400 font-bold whitespace-nowrap">OPS</th>
         `;
         tbody.innerHTML = sortedSplits.map(s => {
           const st = s.stat;
           const mLabel = s.month ? `${s.month} 月` : (s.split?.description || '-');
           return `
             <tr class="hover:bg-slate-800/60">
-              <td class="py-1.5 px-2.5 text-left font-bold text-blue-300">${mLabel}</td>
-              <td class="py-1.5 px-2">${st.gamesPlayed ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.plateAppearances ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.atBats ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.hits ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.homeRuns ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.rbi ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.baseOnBalls ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.strikeOuts ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.stolenBases ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.avg ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.obp ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.slg ?? '-'}</td>
-              <td class="py-1.5 px-2.5 font-extrabold text-amber-400">${st.ops ?? '-'}</td>
+              <td class="py-1.5 px-2.5 text-left font-bold text-blue-300 whitespace-nowrap">${mLabel}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.gamesPlayed ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.plateAppearances ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.atBats ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.hits ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.homeRuns ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.rbi ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.baseOnBalls ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.strikeOuts ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.stolenBases ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.avg ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.obp ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.slg ?? '-'}</td>
+              <td class="py-1.5 px-2.5 font-extrabold text-amber-400 whitespace-nowrap">${st.ops ?? '-'}</td>
             </tr>
           `;
         }).join('');
       } else {
         thead.innerHTML = `
-          <th class="py-2 px-2.5 text-left">月份</th>
-          <th class="py-2 px-2">W-L</th><th class="py-2 px-2 text-amber-400">ERA</th><th class="py-2 px-2">G</th>
-          <th class="py-2 px-2">GS</th><th class="py-2 px-2">IP</th><th class="py-2 px-2">H</th>
-          <th class="py-2 px-2">HR</th><th class="py-2 px-2">BB</th><th class="py-2 px-2">SO</th>
-          <th class="py-2 px-2 text-amber-400">WHIP</th><th class="py-2 px-2.5">AVG</th>
+          <th class="py-2 px-2.5 text-left whitespace-nowrap">月份</th>
+          <th class="py-2 px-2 whitespace-nowrap">W-L</th><th class="py-2 px-2 text-amber-400 whitespace-nowrap">ERA</th><th class="py-2 px-2 whitespace-nowrap">G</th>
+          <th class="py-2 px-2 whitespace-nowrap">GS</th><th class="py-2 px-2 whitespace-nowrap">IP</th><th class="py-2 px-2 whitespace-nowrap">H</th>
+          <th class="py-2 px-2 whitespace-nowrap">HR</th><th class="py-2 px-2 whitespace-nowrap">BB</th><th class="py-2 px-2 whitespace-nowrap">SO</th>
+          <th class="py-2 px-2 text-amber-400 whitespace-nowrap">WHIP</th><th class="py-2 px-2.5 whitespace-nowrap">AVG</th>
         `;
         tbody.innerHTML = sortedSplits.map(s => {
           const st = s.stat;
           const mLabel = s.month ? `${s.month} 月` : (s.split?.description || '-');
           return `
             <tr class="hover:bg-slate-800/60">
-              <td class="py-1.5 px-2.5 text-left font-bold text-blue-300">${mLabel}</td>
-              <td class="py-1.5 px-2">${st.wins ?? 0}-${st.losses ?? 0}</td>
-              <td class="py-1.5 px-2 font-extrabold text-amber-400">${st.era ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.gamesPlayed ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.gamesStarted ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.inningsPitched ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.hits ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.homeRuns ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.baseOnBalls ?? '-'}</td>
-              <td class="py-1.5 px-2">${st.strikeOuts ?? '-'}</td>
-              <td class="py-1.5 px-2 font-extrabold text-amber-400">${st.whip ?? '-'}</td>
-              <td class="py-1.5 px-2.5">${st.avg ?? '-'}</td>
+              <td class="py-1.5 px-2.5 text-left font-bold text-blue-300 whitespace-nowrap">${mLabel}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.wins ?? 0}-${st.losses ?? 0}</td>
+              <td class="py-1.5 px-2 font-extrabold text-amber-400 whitespace-nowrap">${st.era ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.gamesPlayed ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.gamesStarted ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.inningsPitched ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.hits ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.homeRuns ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.baseOnBalls ?? '-'}</td>
+              <td class="py-1.5 px-2 whitespace-nowrap">${st.strikeOuts ?? '-'}</td>
+              <td class="py-1.5 px-2 font-extrabold text-amber-400 whitespace-nowrap">${st.whip ?? '-'}</td>
+              <td class="py-1.5 px-2.5 whitespace-nowrap">${st.avg ?? '-'}</td>
             </tr>
           `;
         }).join('');
@@ -2470,7 +3405,7 @@
           const clampedPr = Math.max(0, Math.min(100, pr));
           return `
             ${sectionHeader}
-            <div class="grid grid-cols-12 items-center gap-2 text-sm">
+            <div class="grid grid-cols-12 items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
               <div class="col-span-4 text-right font-semibold text-slate-700 truncate" title="${label}">${label}</div>
               <div class="col-span-6 relative h-5 flex items-center">
                 <div class="w-full h-2.5 rounded-full savant-bar-bg relative">
@@ -2491,7 +3426,7 @@
         const hatchClass = est >= 50 ? 'hatched-bar-red' : 'hatched-bar-blue';
         return `
           ${sectionHeader}
-          <div class="grid grid-cols-12 items-center gap-2 text-sm opacity-90">
+          <div class="grid grid-cols-12 items-center gap-1.5 sm:gap-2 text-xs sm:text-sm opacity-90">
             <div class="col-span-4 text-right font-medium text-slate-500 truncate" title="${label}">${label}</div>
             <div class="col-span-6 relative h-5 flex items-center">
               <div class="w-full h-2.5 rounded-sm bg-slate-100 relative overflow-hidden">
@@ -2577,7 +3512,7 @@
       const entries = Object.entries(fg || {}).filter(([k]) => !skipKeys.has(k));
 
       if (entries.length === 0) {
-        grid.innerHTML = `<div class="col-span-3 text-xs text-slate-400 py-2">${currentYear} 球季暫無 FanGraphs 數據</div>`;
+        grid.innerHTML = `<div class="col-span-2 sm:col-span-3 text-xs text-slate-400 py-2">${currentYear} 球季暫無 FanGraphs 數據</div>`;
         return;
       }
 
@@ -2590,7 +3525,7 @@
             <div class="text-xs text-slate-500 font-bold">${k}</div>
             <div class="text-lg font-black text-slate-900 my-0.5">${displayVal}</div>
             ${badge
-              ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded border ${badge.cls}">${badge.label}</span>`
+              ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${badge.cls}">${badge.label}</span>`
               : `<span class="text-[10px] text-slate-400">-</span>`
             }
           </div>
