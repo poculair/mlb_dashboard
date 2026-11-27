@@ -2,6 +2,8 @@ import io
 import json
 import math
 import os
+import random
+import urllib.parse
 from curl_cffi import requests
 import pandas as pd
 import pybaseball as pyb
@@ -11,6 +13,7 @@ pyb.cache.enable()
 YEARS = list(range(2015, 2027))
 DEFAULT_YEAR = 2026
 CACHE_DIR = "cache"
+CF_PROFILE_DIR = os.path.join(CACHE_DIR, "fg_chrome_profile")
 
 HEADERS = {
     "Accept": "application/json, text/plain, */*",
@@ -46,6 +49,189 @@ def restore_int_keys(yd: dict) -> dict:
     return restored
 
 
+def _create_fg_session():
+    """建立帶有 Cloudflare Cookie 暖身的 curl_cffi Session，依序嘗試多組瀏覽器指紋以繞過 403"""
+    profiles = ["chrome131", "chrome124", "chrome120", "chrome", "safari15_5", "edge101"]
+    for prof in profiles:
+        try:
+            sess = requests.Session(impersonate=prof)
+            # 先訪問排行榜主頁暖身取得 Cloudflare Cookie
+            warm = sess.get(
+                "https://www.fangraphs.com/leaders/major-league",
+                headers={
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                },
+                timeout=20,
+            )
+            if warm.status_code == 200:
+                return sess, prof
+        except Exception:
+            continue
+    return requests.Session(impersonate="chrome"), "chrome"
+
+
+def _pass_cloudflare_turnstile(page, timeout_sec: int = 35) -> bool:
+    """自動偵測並模擬人類滑鼠點擊 Cloudflare Turnstile 驗證框，直到進入 FanGraphs 主頁"""
+    last_click_sec = -10
+    for sec in range(timeout_sec):
+        title = (page.title() or "").lower()
+        if "fangraphs" in title:
+            page.wait_for_timeout(1200)
+            return True
+
+        if sec >= 2 and (sec - last_click_sec) >= 4:
+            clicked = False
+            # 1) 優先尋找 Cloudflare Turnstile iframe
+            for sel in (
+                'iframe[src*="challenges.cloudflare.com"]',
+                'iframe[src*="turnstile"]',
+                'div.cf-turnstile',
+                '#turnstile-wrapper',
+            ):
+                try:
+                    loc = page.locator(sel).first
+                    if loc.count() > 0:
+                        box = loc.bounding_box()
+                        if box and box["width"] > 20 and box["height"] > 20:
+                            tx = box["x"] + min(32.0, box["width"] * 0.15) + random.uniform(-3.0, 3.0)
+                            ty = box["y"] + (box["height"] / 2.0) + random.uniform(-3.0, 3.0)
+                            page.mouse.move(tx, ty, steps=random.randint(8, 15))
+                            page.wait_for_timeout(random.randint(120, 280))
+                            page.mouse.click(tx, ty)
+                            last_click_sec = sec
+                            clicked = True
+                            print("  [Patchright] 已自動點擊 Cloudflare 驗證框，等待放行...")
+                            break
+                except Exception:
+                    continue
+
+            # 2) 若在 Shadow DOM 內，改由 frame 列表定位
+            if not clicked:
+                for fr in page.frames:
+                    if "challenges.cloudflare.com" in (fr.url or ""):
+                        try:
+                            el = fr.frame_element()
+                            box = el.bounding_box()
+                            if box and box["width"] > 20 and box["height"] > 20:
+                                tx = box["x"] + min(32.0, box["width"] * 0.15) + random.uniform(-3.0, 3.0)
+                                ty = box["y"] + (box["height"] / 2.0) + random.uniform(-3.0, 3.0)
+                                page.mouse.move(tx, ty, steps=random.randint(8, 15))
+                                page.wait_for_timeout(random.randint(120, 280))
+                                page.mouse.click(tx, ty)
+                                last_click_sec = sec
+                                print("  [Patchright] 已透過 Frame 定位自動點擊 Cloudflare 驗證框...")
+                                break
+                        except Exception:
+                            continue
+
+        page.wait_for_timeout(1000)
+
+    return "fangraphs" in (page.title() or "").lower()
+
+
+def _fetch_fangraphs_both_via_patchright(year: int, need_bat: bool = True, need_pit: bool = True):
+    """單一持久化 Chrome 視窗同時抓取打者與投手 FanGraphs API（自動點擊 Turnstile 並保留 Cookie）"""
+    try:
+        from patchright.sync_api import sync_playwright
+    except ImportError:
+        print("  [提示] 尚未安裝 Patchright，請執行：pip install patchright && patchright install chrome")
+        return {}, {}
+
+    os.makedirs(CF_PROFILE_DIR, exist_ok=True)
+    url = "https://www.fangraphs.com/api/leaders/major-league/data"
+    fg_bat, fg_pit = {}, {}
+
+    with sync_playwright() as p:
+        try:
+            context = p.chromium.launch_persistent_context(
+                CF_PROFILE_DIR,
+                channel="chrome",
+                headless=False,
+                no_viewport=True,
+            )
+        except Exception:
+            context = p.chromium.launch_persistent_context(
+                CF_PROFILE_DIR,
+                headless=False,
+                no_viewport=True,
+            )
+
+        try:
+            page = context.pages[0] if context.pages else context.new_page()
+            page.goto("https://www.fangraphs.com/leaders/major-league", wait_until="domcontentloaded", timeout=45000)
+            passed = _pass_cloudflare_turnstile(page, timeout_sec=35)
+            if not passed:
+                print(f"  [警告] Patchright 無法於 35 秒內通過 Cloudflare 驗證 (title={page.title()!r})")
+
+            def fetch_json_in_browser(params_dict: dict):
+                qs = urllib.parse.urlencode(params_dict)
+                full_url = f"{url}?{qs}"
+                return page.evaluate(
+                    """async (u) => {
+                        const r = await fetch(u, { credentials: 'include' });
+                        if (!r.ok) return { ok: false, status: r.status };
+                        return { ok: true, payload: await r.json() };
+                    }""",
+                    full_url,
+                )
+
+            extra_keys = [
+                "BsR", "BaseRunning", "Def", "Defense", "Fielding", "Positional",
+                "ERA-", "Stuff+", "sp_stuff", "HR/9",
+                "GB%", "Pull%", "Z-Swing%", "Zone%", "G", "GS", "IP",
+            ]
+
+            targets = []
+            if need_bat:
+                targets.append(("bat", ["6", "2", "5"], fg_bat))
+            if need_pit:
+                targets.append(("pit", ["0", "36", "5"], fg_pit))
+
+            for stats_type, extra_types, out_map in targets:
+                base_params = {
+                    "age": "", "pos": "all", "stats": stats_type, "lg": "all", "qual": "1",
+                    "season": year, "season1": year,
+                    "startdate": f"{year}-03-01", "enddate": f"{year}-11-01",
+                    "month": "0", "hand": "", "team": "0", "pageitems": "2000", "pagenum": "1",
+                    "ind": "0", "rost": "0", "players": "", "type": "8", "postseason": "",
+                    "sortdir": "default", "sortstat": "WAR",
+                }
+                main_res = fetch_json_in_browser(base_params)
+                if not main_res or not main_res.get("ok"):
+                    st = main_res.get("status") if isinstance(main_res, dict) else "unknown"
+                    print(f"  [警告] Patchright 抓取 {year} FanGraphs ({stats_type}) 主表失敗 (status={st})")
+                    continue
+
+                for row in main_res.get("payload", {}).get("data", []):
+                    if row.get("playerid"):
+                        pid = int(row["playerid"])
+                        if row.get("sp_stuff") is not None and row.get("Stuff+") is None:
+                            row["Stuff+"] = row["sp_stuff"]
+                        out_map[pid] = row
+
+                for t in extra_types:
+                    try:
+                        ex_res = fetch_json_in_browser({**base_params, "type": t})
+                        if ex_res and ex_res.get("ok"):
+                            for row in ex_res.get("payload", {}).get("data", []):
+                                pid = row.get("playerid")
+                                if pid and int(pid) in out_map:
+                                    for k in extra_keys:
+                                        if row.get(k) is not None:
+                                            out_map[int(pid)][k] = row[k]
+                                    if row.get("sp_stuff") is not None and out_map[int(pid)].get("Stuff+") is None:
+                                        out_map[int(pid)]["Stuff+"] = row["sp_stuff"]
+                    except Exception:
+                        pass
+        except Exception as e:
+            print(f"  [警告] Patchright 抓取 {year} FanGraphs 例外: {e}")
+        finally:
+            context.close()
+
+    return fg_bat, fg_pit
+
+
 def fetch_fangraphs_leaders(year: int, stats_type: str = "bat"):
     """透過 FanGraphs Leaderboard API 取得真實 fWAR、BsR/Def、進階指標與風格特徵 (GB%/Pull%/Z-Swing%/Zone%)"""
     url = "https://www.fangraphs.com/api/leaders/major-league/data"
@@ -57,18 +243,41 @@ def fetch_fangraphs_leaders(year: int, stats_type: str = "bat"):
         "ind": "0", "rost": "0", "players": "", "type": "8", "postseason": "",
         "sortdir": "default", "sortstat": "WAR",
     }
+    api_headers = {
+        **HEADERS,
+        "Origin": "https://www.fangraphs.com",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+    }
+
     leaders_map = {}
-    try:
-        res = requests.get(url, params=base_params, headers=HEADERS, impersonate="chrome", timeout=20)
-        res.raise_for_status()
-        for row in res.json().get("data", []):
-            if row.get("playerid"):
-                pid = int(row["playerid"])
-                if row.get("sp_stuff") is not None and row.get("Stuff+") is None:
-                    row["Stuff+"] = row["sp_stuff"]
-                leaders_map[pid] = row
-    except Exception as e:
-        print(f"  [警告] {year} FanGraphs ({stats_type}) API 抓取失敗: {e}")
+    active_sess = None
+    profiles = ["chrome131", "chrome124", "chrome120", "safari15_5", "edge101", "chrome"]
+
+    # 先試暖身 Session，若仍 403 則輪詢其他瀏覽器指紋
+    sess_warm, warm_prof = _create_fg_session()
+    try_list = [(sess_warm, warm_prof)] + [(None, p) for p in profiles if p != warm_prof]
+
+    last_err = None
+    for sess_obj, prof in try_list:
+        try:
+            s = sess_obj if sess_obj is not None else requests.Session(impersonate=prof)
+            res = s.get(url, params=base_params, headers=api_headers, timeout=20)
+            res.raise_for_status()
+            data_rows = res.json().get("data", [])
+            if data_rows:
+                for row in data_rows:
+                    if row.get("playerid"):
+                        pid = int(row["playerid"])
+                        if row.get("sp_stuff") is not None and row.get("Stuff+") is None:
+                            row["Stuff+"] = row["sp_stuff"]
+                        leaders_map[pid] = row
+                active_sess = s
+                break
+        except Exception as e:
+            last_err = e
+            continue
 
     # 打者補抓: 6=Value(BsR/Def), 2=Batted Ball(GB%/Pull%), 5=Plate Discipline(Z-Swing%)
     # 投手補抓: 0=Standard(HR/9, G, GS, IP), 36=Stuff+, 5=Plate Discipline(Zone% 備援)
@@ -78,9 +287,13 @@ def fetch_fangraphs_leaders(year: int, stats_type: str = "bat"):
         "ERA-", "Stuff+", "sp_stuff", "HR/9",
         "GB%", "Pull%", "Z-Swing%", "Zone%", "G", "GS", "IP",
     ]
+
+    if not leaders_map:
+        print(f"  [警告] {year} FanGraphs ({stats_type}) curl_cffi 失敗 ({last_err})")
+        return leaders_map
     for t in extra_types:
         try:
-            ex_res = requests.get(url, params={**base_params, "type": t}, headers=HEADERS, impersonate="chrome", timeout=20)
+            ex_res = active_sess.get(url, params={**base_params, "type": t}, headers=api_headers, timeout=20)
             if ex_res.status_code == 200:
                 for row in ex_res.json().get("data", []):
                     pid = row.get("playerid")
@@ -173,12 +386,33 @@ def compute_league_percentiles(fg_map: dict, stats_type: str = "bat") -> dict:
     return pr_lookup
 
 
+def fetch_savant_sprint_speed(year: int) -> dict:
+    """抓取指定球季 Baseball Savant Sprint Speed (ft/s) 實測數值"""
+    sp_map = {}
+    try:
+        sp_res = requests.get(
+            "https://baseballsavant.mlb.com/leaderboard/sprint_speed",
+            params={"min_season": year, "max_season": year, "position": "", "team": "", "min": "1", "csv": "true"},
+            impersonate="chrome", timeout=20,
+        )
+        if sp_res.status_code == 200:
+            sp_df = pd.read_csv(io.StringIO(sp_res.text))
+            id_col = "player_id" if "player_id" in sp_df.columns else ("id" if "id" in sp_df.columns else None)
+            if id_col and "sprint_speed" in sp_df.columns:
+                for _, r in sp_df.iterrows():
+                    if pd.notna(r.get(id_col)) and pd.notna(r.get("sprint_speed")):
+                        sp_map[int(r[id_col])] = float(r["sprint_speed"])
+    except Exception:
+        pass
+    return sp_map
+
+
 def fetch_savant_raw_metrics(year: int, player_type: str = "batter"):
     """抓取 Savant Custom Leaderboard、Bat Tracking、OAA 守備、Arm Strength、投手 Pitch Run Value、球種配比與 Arm Angle"""
     merged_map = {}
     url = "https://baseballsavant.mlb.com/leaderboard/custom"
     if player_type == "batter":
-        selections = "xwoba,xba,xslg,exit_velocity_avg,barrel_batted_rate,hard_hit_percent,sweet_spot_percent,avg_swing_speed,squared_up_swing_rate,oz_swing_percent,whiff_percent,k_percent,bb_percent"
+        selections = "xwoba,xba,xslg,exit_velocity_avg,barrel_batted_rate,hard_hit_percent,sweet_spot_percent,avg_swing_speed,squared_up_swing_rate,oz_swing_percent,whiff_percent,k_percent,bb_percent,sprint_speed"
     else:
         selections = "xera,xwoba,xba,exit_velocity_avg,barrel_batted_rate,hard_hit_percent,oz_swing_percent,whiff_percent,k_percent,bb_percent,ff_avg_speed,ff_avg_spin,groundballs_percent,release_extension,in_zone_percent"
 
@@ -262,6 +496,11 @@ def fetch_savant_raw_metrics(year: int, player_type: str = "batter"):
                                 merged_map[pid]["arm_overall"] = r[val_col]
             except Exception:
                 pass
+
+        for pid, sp_val in fetch_savant_sprint_speed(year).items():
+            merged_map.setdefault(pid, {})
+            if pd.isna(merged_map[pid].get("sprint_speed")):
+                merged_map[pid]["sprint_speed"] = sp_val
 
     else:
         try:
@@ -517,6 +756,7 @@ def build_database():
         ("Whiff %", ["whiff_percent"], "whiff_percent", ".1f"),
         ("K %", ["k_percent"], "k_percent", ".1f"),
         ("BB %", ["bb_percent"], "bb_percent", ".1f"),
+        ("Sprint Speed", ["sprint_speed"], "sprint_speed", ".1f"),
         ("Range (OAA)", ["oaa"], "outs_above_average", ".0f"),
         ("Arm Strength", ["arm_strength"], "arm_overall", ".1f"),
     ]
@@ -549,6 +789,15 @@ def build_database():
             print(f"2/4 [快取命中] 直接讀取 {yr} 年快取並同步單邊 WAR PR...")
             with open(cache_path, "r", encoding="utf-8") as cf:
                 yd_cached = restore_int_keys(json.load(cf))
+            raw_bat_cached = yd_cached.get("raw_bat", {})
+            if raw_bat_cached and not any("sprint_speed" in r for r in raw_bat_cached.values()):
+                print(f"    -> 補抓 {yr} 年 Sprint Speed 並更新快取...")
+                for pid, sp_val in fetch_savant_sprint_speed(yr).items():
+                    raw_bat_cached.setdefault(pid, {})["sprint_speed"] = sp_val
+                yd_cached["raw_bat"] = raw_bat_cached
+                yd_cached["est_bat"] = build_raw_percentile_fallback(raw_bat_cached, BATTER_METRICS)
+                with open(cache_path, "w", encoding="utf-8") as cf:
+                    json.dump(clean_for_json(yd_cached), cf, ensure_ascii=False, separators=(",", ":"))
             yd_cached["fg_bat_pr"] = compute_league_percentiles(yd_cached.get("fg_bat", {}), "bat")
             yd_cached["fg_pit_pr"] = compute_league_percentiles(yd_cached.get("fg_pit", {}), "pit")
             yearly_data[yr] = yd_cached
@@ -571,6 +820,29 @@ def build_database():
 
         fg_bat = fetch_fangraphs_leaders(yr, "bat")
         fg_pit = fetch_fangraphs_leaders(yr, "pit")
+        if not fg_bat or not fg_pit:
+            print(f"  [Patchright] 啟動單一持久化視窗自動補抓 {yr} 年 FanGraphs（打者/投手共用一次驗證）...")
+            pw_bat, pw_pit = _fetch_fangraphs_both_via_patchright(yr, need_bat=not fg_bat, need_pit=not fg_pit)
+            if not fg_bat and pw_bat:
+                fg_bat = pw_bat
+            if not fg_pit and pw_pit:
+                fg_pit = pw_pit
+
+        # 防呆保護：若 FanGraphs 遇到 403 導致回傳 0 筆，自動從舊快取救回該年 FanGraphs 數據，避免清空 mlb_data.json
+        if (not fg_bat or not fg_pit) and os.path.exists(cache_path):
+            print(f"  [防呆保護] {yr} 年 FanGraphs 抓取失敗，改用本地快取 {cache_path} 保留既有 FanGraphs 數據...")
+            with open(cache_path, "r", encoding="utf-8") as cf:
+                yd_fallback = restore_int_keys(json.load(cf))
+            if not fg_bat:
+                fg_bat = yd_fallback.get("fg_bat", {})
+            if not fg_pit:
+                fg_pit = yd_fallback.get("fg_pit", {})
+
+        if not fg_bat and not fg_pit:
+            raise RuntimeError(
+                f"{yr} 年 FanGraphs API 遭到 403 封鎖且無本地快取 ({cache_path}) 可回退，"
+                "已中止寫入 mlb_data.json 以免覆蓋現有資料。請稍後再試或先保留舊版 mlb_data.json。"
+            )
 
         for pid, r in fg_bat.items():
             bsr_val = r.get("BsR") if r.get("BsR") is not None else r.get("BaseRunning")
@@ -607,7 +879,8 @@ def build_database():
         yearly_data[yr] = yr_payload
         print(f"    {yr} 年完成：打者 {len(fg_bat)} 筆、投手 {len(fg_pit)} 筆。")
 
-        if yr != DEFAULT_YEAR:
+        # 僅在 FanGraphs 有實際抓到資料時寫入快取（含當年作為下次 403 防呆備份）
+        if fg_bat and fg_pit:
             with open(cache_path, "w", encoding="utf-8") as cf:
                 json.dump(clean_for_json(yr_payload), cf, ensure_ascii=False, separators=(",", ":"))
 

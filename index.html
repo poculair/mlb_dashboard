@@ -680,7 +680,10 @@
 
     const SIM_FEATURES = {
       batter_batting: {
-        savant: BATTER_CORE_SAVANT,
+        savant: [
+          ...BATTER_CORE_SAVANT,
+          ['Sprint Speed', 0.6],
+        ],
         fg: [],
         sim: BATTER_CORE_SIM,
       },
@@ -742,7 +745,7 @@
       return `
         <span class="inline-flex items-center rounded-md bg-white p-0.5 border border-slate-300 text-[11px] font-bold shadow-2xs" title="切換打者相似度計算維度">
           <button onclick="setSimBatterMode('full')" class="px-2 py-0.5 rounded transition cursor-pointer ${fullCls}" title="包含打擊＋彈道/拉打/好球帶積極度＋跑壘(BsR)與守備(Def)">完整型態</button>
-          <button onclick="setSimBatterMode('batting')" class="px-2 py-0.5 rounded transition cursor-pointer ${batCls}" title="僅比對擊球物理、彈道/拉打、本壘板紀律與 xwOBA，排除跑壘與守備">純打擊</button>
+          <button onclick="setSimBatterMode('batting')" class="px-2 py-0.5 rounded transition cursor-pointer ${batCls}" title="比對擊球物理、彈道/拉打、本壘板紀律、xwOBA 與衝刺速度 (Sprint Speed)，排除盜壘與守備">純打擊</button>
         </span>
       `;
     }
@@ -899,8 +902,12 @@
             if (!candSub || candSub !== targetSubRole || candIp < minCandIp) continue;
           } else if (role === 'batter') {
             const candPa = Number(sObj.batting?.pa || 0);
+            const targetPa = Number(targetSeason.batting?.pa || 0);
+            const seasonScale = String(yr) === '2020' ? 0.37 : 1.0;
+            const baseFloor = targetPa >= 450 ? 350 : 150;
+            const dynamicPaFloor = Math.round(baseFloor * seasonScale);
             if (candPa > 0) {
-              if (candPa < 150) continue;
+              if (candPa < dynamicPaFloor) continue;
             } else {
               const offCnt = (sObj.batting?.savant_pr || []).filter(i => i.pr !== null && i.pr !== undefined).length;
               if (offCnt < 4) continue;
@@ -1912,7 +1919,7 @@
       const merged = (baseList || []).map(localItem => {
         const offItem = officialMap.get(localItem.label);
         if (!offItem) {
-          if (!isPaQual && !['Fastball Velo', 'Fastball Spin', 'Extension', 'Bat Speed', 'Arm Strength', 'Range (OAA)'].includes(localItem.label)) {
+          if (!isPaQual && !['Fastball Velo', 'Fastball Spin', 'Extension', 'Bat Speed', 'Sprint Speed', 'Arm Strength', 'Range (OAA)'].includes(localItem.label)) {
             return { ...localItem, pr: null };
           }
           return localItem;
@@ -2528,7 +2535,7 @@
         ? [
             'xwOBA', 'xBA', 'xSLG', 'Avg Exit Velo', 'Barrel %', 'Hard-Hit %',
             'LA Sweet-Spot %', 'Bat Speed', 'Squared-Up %', 'Chase %', 'Whiff %',
-            'K %', 'BB %', 'Range (OAA)', 'Arm Strength'
+            'K %', 'BB %', 'Sprint Speed', 'Range (OAA)', 'Arm Strength'
           ]
         : [
             'Pitching Run Value', 'Fastball Run Value', 'Breaking Run Value', 'Offspeed Run Value',
@@ -3386,6 +3393,7 @@
 
       container.innerHTML = prList.map((item, idx) => {
         const { label, pr, est_pr, val } = item;
+        const isBaserunningStart = label === 'Sprint Speed';
         const isFieldingStart = label === 'Range (OAA)';
         const isValueStart = idx === 0 && label.includes('Run Value');
         const isPitchingStart = role === 'pitcher' && !label.includes('Run Value') && !renderedPitchingDivider;
@@ -3396,6 +3404,8 @@
           sectionHeader = '<div class="pb-1 mb-1 border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">Pitch Value (Run Value)</div>';
         } else if (isPitchingStart && idx > 0) {
           sectionHeader = '<div class="pt-2 mt-2 border-t border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">Pitching Metrics</div>';
+        } else if (isBaserunningStart) {
+          sectionHeader = '<div class="pt-2 mt-2 border-t border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">Baserunning</div>';
         } else if (isFieldingStart) {
           sectionHeader = '<div class="pt-2 mt-2 border-t border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">Fielding</div>';
         }

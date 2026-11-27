@@ -3,6 +3,7 @@ import http.server
 import io
 import json
 import os
+import random
 import re
 import socketserver
 import threading
@@ -10,12 +11,15 @@ import time
 from urllib.parse import parse_qs, urlparse
 from curl_cffi import requests
 
-VERSION = "v4.8"
+VERSION = "v4.11"
 PORT = int(os.environ.get("PORT", 8000))
 CACHE_FILE = "player_extra_cache.json"
-CACHE_TTL = 60 * 60 * 24  # 快取有效期：24 小時
+CF_PROFILE_DIR = os.path.join("cache", "fg_chrome_profile")
+CACHE_TTL = 60 * 60 * 24  # 一般快取有效期：24 小時
+FG_CACHE_TTL = 60 * 60 * 24 * 7  # FanGraphs 球探/合約快取有效期：7 天
 
 cache_lock = threading.Lock()
+fg_browser_lock = threading.Lock()
 extra_cache = {}
 
 if os.path.exists(CACHE_FILE):
@@ -54,15 +58,141 @@ FALLBACK_LG_AVG_MPH = {
 }
 
 
-def cache_get(key: str):
+def cache_get(key: str, ttl: int = CACHE_TTL):
     with cache_lock:
         entry = extra_cache.get(key)
         if not isinstance(entry, dict) or "ts" not in entry or "data" not in entry:
             return None, False
-        if (time.time() - entry["ts"]) > CACHE_TTL:
-            extra_cache.pop(key, None)
+        if (time.time() - entry["ts"]) > ttl:
             return None, False
         return entry["data"], True
+
+
+def find_fallback_fg_cache(clean_id: str, player_name: str = ""):
+    """當 FanGraphs 遇 403/5xx 或快取過期時，從既有快取（含 v4.7/v4.8 舊格式）救回該球員的合約與球探報告"""
+    pname_l = (player_name or "").strip().lower()
+    best_data = None
+    best_score = -1
+    with cache_lock:
+        for k, entry in extra_cache.items():
+            if not k.startswith("fg_v"):
+                continue
+            # 格式: fg_v4.x_{id}_{name}_{year}_{role}
+            parts = k.split("_")
+            if len(parts) < 4:
+                continue
+            k_id = parts[2]
+            k_name = parts[3].strip().lower()
+            if not ((clean_id and clean_id not in ("0", "-1") and k_id == clean_id) or (pname_l and k_name == pname_l)):
+                continue
+            data = entry.get("data") if (isinstance(entry, dict) and "ts" in entry and "data" in entry) else entry
+            if not isinstance(data, dict):
+                continue
+            has_roster = bool(data.get("roster_info"))
+            has_scout = bool(data.get("scouting"))
+            if not has_roster and not has_scout:
+                continue
+            ts = entry.get("ts", 0) if isinstance(entry, dict) else 0
+            score = (10 if has_roster else 0) + (5 if has_scout else 0) + (ts / 1e12)
+            if score > best_score:
+                best_score = score
+                best_data = data
+    return best_data
+
+
+def _pass_cloudflare_turnstile(page, timeout_sec: int = 35) -> bool:
+    """自動偵測並模擬人類滑鼠點擊 Cloudflare Turnstile 驗證框"""
+    last_click_sec = -10
+    for sec in range(timeout_sec):
+        title = (page.title() or "").lower()
+        if "fangraphs" in title:
+            page.wait_for_timeout(1000)
+            return True
+
+        if sec >= 2 and (sec - last_click_sec) >= 4:
+            clicked = False
+            for sel in (
+                'iframe[src*="challenges.cloudflare.com"]',
+                'iframe[src*="turnstile"]',
+                'div.cf-turnstile',
+                '#turnstile-wrapper',
+            ):
+                try:
+                    loc = page.locator(sel).first
+                    if loc.count() > 0:
+                        box = loc.bounding_box()
+                        if box and box["width"] > 20 and box["height"] > 20:
+                            tx = box["x"] + min(32.0, box["width"] * 0.15) + random.uniform(-3.0, 3.0)
+                            ty = box["y"] + (box["height"] / 2.0) + random.uniform(-3.0, 3.0)
+                            page.mouse.move(tx, ty, steps=random.randint(8, 15))
+                            page.wait_for_timeout(random.randint(120, 280))
+                            page.mouse.click(tx, ty)
+                            last_click_sec = sec
+                            clicked = True
+                            print(f"[{VERSION} Patchright] 已自動點擊 Cloudflare 驗證框，等待放行...")
+                            break
+                except Exception:
+                    continue
+
+            if not clicked:
+                for fr in page.frames:
+                    if "challenges.cloudflare.com" in (fr.url or ""):
+                        try:
+                            el = fr.frame_element()
+                            box = el.bounding_box()
+                            if box and box["width"] > 20 and box["height"] > 20:
+                                tx = box["x"] + min(32.0, box["width"] * 0.15) + random.uniform(-3.0, 3.0)
+                                ty = box["y"] + (box["height"] / 2.0) + random.uniform(-3.0, 3.0)
+                                page.mouse.move(tx, ty, steps=random.randint(8, 15))
+                                page.wait_for_timeout(random.randint(120, 280))
+                                page.mouse.click(tx, ty)
+                                last_click_sec = sec
+                                print(f"[{VERSION} Patchright] 已透過 Frame 定位自動點擊 Cloudflare 驗證框...")
+                                break
+                        except Exception:
+                            continue
+
+        page.wait_for_timeout(1000)
+
+    return "fangraphs" in (page.title() or "").lower()
+
+
+def _fetch_fg_html_via_patchright(url: str):
+    """當 curl_cffi 遭遇 Cloudflare 403 時，透過持久化 Patchright 瀏覽器（共用 Cookie + 自動點擊驗證框）抓取 FanGraphs 球員頁面"""
+    try:
+        from patchright.sync_api import sync_playwright
+    except ImportError:
+        return None, None
+
+    os.makedirs(CF_PROFILE_DIR, exist_ok=True)
+    with fg_browser_lock:
+        with sync_playwright() as p:
+            try:
+                context = p.chromium.launch_persistent_context(
+                    CF_PROFILE_DIR,
+                    channel="chrome",
+                    headless=False,
+                    no_viewport=True,
+                )
+            except Exception:
+                context = p.chromium.launch_persistent_context(
+                    CF_PROFILE_DIR,
+                    headless=False,
+                    no_viewport=True,
+                )
+            try:
+                page = context.pages[0] if context.pages else context.new_page()
+                page.goto(url, wait_until="domcontentloaded", timeout=45000)
+                _pass_cloudflare_turnstile(page, timeout_sec=35)
+                final_url = page.url
+                html_text = page.content()
+                if "__NEXT_DATA__" in html_text:
+                    return html_text, final_url
+            except Exception as e:
+                print(f"[{VERSION} Patchright 抓頁異常] {url}: {e}")
+            finally:
+                context.close()
+    return None, None
 
 
 def cache_set(key: str, value):
@@ -482,7 +612,7 @@ def lookup_fg_live_stats(player_name: str, year: str, role: str):
 def fetch_fg_player_scouting(fg_id: str, player_name: str = "", year: str = "2026", role: str = "batter"):
     clean_id = str(fg_id).replace(".0", "").strip()
     cache_key = f"fg_{VERSION}_{clean_id}_{player_name}_{year}_{role}"
-    cached, hit = cache_get(cache_key)
+    cached, hit = cache_get(cache_key, ttl=FG_CACHE_TTL)
     if hit:
         return cached
 
@@ -490,6 +620,7 @@ def fetch_fg_player_scouting(fg_id: str, player_name: str = "", year: str = "202
     resolved_url = url
     fg_stats = None
     roster_info = None
+    html_text = ""
 
     try:
         res = requests.get(
@@ -509,51 +640,62 @@ def fetch_fg_player_scouting(fg_id: str, player_name: str = "", year: str = "202
                 timeout=15,
             )
 
-        if res.status_code >= 500:
-            print(f"[{VERSION} FG 5xx 重試仍失敗] name={player_name} id={clean_id} status={res.status_code}（不寫入快取）")
-            return {
-                "scouting": None,
-                "resolved_url": None,
-                "fg_stats": None,
-                "roster_info": None,
-            }
-
-        is_404 = (res.status_code == 404) or ("Page Not Found" in res.text[:15000])
+        is_blocked = res.status_code in (403, 429) or res.status_code >= 500
+        is_404 = (res.status_code == 404) or (res.status_code == 200 and "Page Not Found" in res.text[:15000])
         print(f"[{VERSION} FG 查詢] name={player_name} id={clean_id} yr={year} role={role} status={res.status_code} is_404={is_404}")
 
-        if is_404 and player_name:
-            fg_stats = lookup_fg_live_stats(player_name, year, role)
-            alt_url = resolve_fg_url_by_name(player_name)
-            if alt_url:
-                print(f"[{VERSION} FanGraphs 404 自動救援成功] {player_name}: {alt_url}")
-                resolved_url = alt_url
-                res = requests.get(
-                    alt_url,
-                    impersonate="chrome",
-                    headers={"Referer": "https://www.fangraphs.com/"},
-                    timeout=15,
-                )
-                if res.status_code >= 500:
-                    print(f"[{VERSION} FG 救援頁 5xx 失敗] {player_name} status={res.status_code}（不寫入快取）")
-                    return {
-                        "scouting": None,
-                        "resolved_url": resolved_url,
-                        "fg_stats": fg_stats,
-                        "roster_info": None,
-                    }
+        if is_blocked:
+            # 1) 優先使用既有快取（含 v4.7/v4.8 舊資料），秒回合約與球探報告且免開視窗
+            fb = find_fallback_fg_cache(clean_id, player_name)
+            if fb:
+                print(f"[{VERSION} FG 403/5xx 快取降級救援] {player_name}: 使用既有快取保留合約與球探報告")
+                return fb
 
-        if res.status_code != 200 or ("Page Not Found" in res.text[:15000]):
-            payload = {
-                "scouting": None,
-                "resolved_url": resolved_url if resolved_url != url else None,
-                "fg_stats": fg_stats,
-                "roster_info": None,
-            }
-            cache_set(cache_key, payload)
-            return payload
+            # 2) 若無舊快取，嘗試以 Patchright 反偵測瀏覽器抓取
+            if res.status_code in (403, 429):
+                print(f"[{VERSION} FG 403] {player_name} 無既有快取，改用 Patchright 抓取...")
+                pw_html, pw_url = _fetch_fg_html_via_patchright(url)
+                if pw_html:
+                    html_text = pw_html
+                    resolved_url = pw_url or url
+                else:
+                    return {"scouting": None, "resolved_url": None, "fg_stats": None, "roster_info": None}
+            else:
+                return {"scouting": None, "resolved_url": None, "fg_stats": None, "roster_info": None}
+        else:
+            if is_404 and player_name:
+                fg_stats = lookup_fg_live_stats(player_name, year, role)
+                alt_url = resolve_fg_url_by_name(player_name)
+                if alt_url:
+                    print(f"[{VERSION} FanGraphs 404 自動救援成功] {player_name}: {alt_url}")
+                    resolved_url = alt_url
+                    res = requests.get(
+                        alt_url,
+                        impersonate="chrome",
+                        headers={"Referer": "https://www.fangraphs.com/"},
+                        timeout=15,
+                    )
+                    if res.status_code in (403, 429) or res.status_code >= 500:
+                        fb = find_fallback_fg_cache(clean_id, player_name)
+                        if fb:
+                            return fb
+                        return {"scouting": None, "resolved_url": resolved_url, "fg_stats": fg_stats, "roster_info": None}
 
-        resolved_url = res.url
-        match = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', res.text)
+            if res.status_code != 200 or ("Page Not Found" in res.text[:15000]):
+                payload = {
+                    "scouting": None,
+                    "resolved_url": resolved_url if resolved_url != url else None,
+                    "fg_stats": fg_stats,
+                    "roster_info": None,
+                }
+                if res.status_code == 404 or ("Page Not Found" in res.text[:15000]):
+                    cache_set(cache_key, payload)
+                return payload
+
+            resolved_url = res.url
+            html_text = res.text
+
+        match = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', html_text)
         scouting_obj = None
         page_props = {}
 
@@ -611,7 +753,7 @@ def fetch_fg_player_scouting(fg_id: str, player_name: str = "", year: str = "202
                     "tldr": pick_first(rep, ["TLDR", "tldr", "Summary", "summary", "Report", "report"]) or "無文字總結。",
                 }
 
-        roster_info = extract_fg_roster_info(page_props, res.text)
+        roster_info = extract_fg_roster_info(page_props, html_text)
         yr_cnt = len(roster_info.get("yearly", [])) if roster_info else 0
         print(f"[{VERSION} FG RosterInfo] {player_name}: contract={roster_info.get('contract') if roster_info else None} fa={roster_info.get('fa_year') if roster_info else None} yearly_cnt={yr_cnt}")
 
