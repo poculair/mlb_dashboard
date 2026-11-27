@@ -21,13 +21,23 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Restore yearly data cache (2015–2026)
+        uses: actions/cache@v4
+        with:
+          path: cache/*.json
+          key: mlb-yearly-cache-v1-${{ github.run_id }}
+          restore-keys: |
+            mlb-yearly-cache-v1-
+
+      - name: Install dependencies & browser
         run: |
           pip install --upgrade pip
-          pip install curl_cffi requests pandas
+          pip install -r requirements.txt
+          patchright install chrome || patchright install chromium
 
-      - name: Run fetch_data.py
-        run: python fetch_data.py
+      - name: Run fetch_data.py (with virtual display)
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python fetch_data.py
 
       - name: Commit and push if changed
         run: |
